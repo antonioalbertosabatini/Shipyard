@@ -1,0 +1,197 @@
+{
+  "nav": {
+    "dashboard": "Dashboard",
+    "projects": "Projects",
+    "settings": "Settings",
+    "main": "Main navigation",
+    "activeProjects": "Active projects"
+  },
+  "common": {
+    "cancel": "Cancel",
+    "save": "Save changes",
+    "create": "Create",
+    "delete": "Delete",
+    "edit": "Edit",
+    "moreActions": "More actions"
+  },
+  "errors": {
+    "generic": "Something went wrong. Please try again.",
+    "unexpectedTitle": "Unexpected error",
+    "unexpectedDescription": "This page crashed. Your data is safe, try reloading.",
+    "reload": "Reload",
+    "notFoundTitle": "Page not found",
+    "notFoundDescription": "The page you are looking for does not exist.",
+    "backToDashboard": "Back to dashboard"
+  },
+  "validation": {
+    "required": "This field is required.",
+    "tooLong": "Must be at most {{max}} characters.",
+    "url": "Enter a valid web address, starting with https://"
+  },
+  "project": {
+    "new": "New project",
+    "createTitle": "Create project",
+    "createDescription": "Group the tasks of one of your web projects.",
+    "editTitle": "Edit project",
+    "fields": {
+      "name": "Name",
+      "namePlaceholder": "My portfolio",
+      "description": "Description",
+      "descriptionPlaceholder": "What is this project about?",
+      "color": "Color",
+      "repoUrl": "Repository URL",
+      "liveUrl": "Live URL"
+    },
+    "colorLabel": "Color {{color}}",
+    "created": "Project created",
+    "updated": "Project updated",
+    "archived": "Project archived",
+    "restored": "Project restored",
+    "deleted": "Project deleted",
+    "archive": "Archive",
+    "restore": "Restore",
+    "archivedBadge": "Archived",
+    "deleteTitle": "Delete “{{name}}”?",
+    "deleteDescription": "The project and all of its tasks will be removed. This cannot be undone.",
+    "notFoundTitle": "Project not found",
+    "notFoundDescription": "It may have been deleted.",
+    "backToProjects": "Back to projects",
+    "repository": "Repository",
+    "liveSite": "Live site",
+    "progress": "{{done}} of {{total}} tasks done",
+    "noTasks": "No tasks yet",
+    "listDescription": "All your projects in one place.",
+    "filter": {
+      "label": "Show projects",
+      "active": "Active",
+      "archived": "Archived"
+    },
+    "empty": {
+      "title": "No projects yet",
+      "description": "Create your first project to start tracking its tasks."
+    },
+    "emptyArchived": {
+      "title": "No archived projects",
+      "description": "Projects you archive will show up here."
+    }
+  },
+  "task": {
+    "new": "New task",
+    "createTitle": "Create task",
+    "editTitle": "Edit task",
+    "fields": {
+      "title": "Title",
+      "titlePlaceholder": "Fix the mobile menu",
+      "description": "Description",
+      "descriptionPlaceholder": "Details, steps to reproduce, links…",
+      "type": "Type",
+      "status": "Status",
+      "priority": "Priority",
+      "dueDate": "Due date"
+    },
+    "type": {
+      "feature": "Feature",
+      "bugfix": "Bugfix",
+      "improvement": "Improvement",
+      "chore": "Chore",
+      "other": "Other"
+    },
+    "status": {
+      "backlog": "Backlog",
+      "todo": "To do",
+      "in_progress": "In progress",
+      "done": "Done"
+    },
+    "priority": {
+      "low": "Low",
+      "medium": "Medium",
+      "high": "High",
+      "critical": "Critical"
+    },
+    "created": "Task created",
+    "updated": "Task updated",
+    "deleted": "Task deleted",
+    "deleteTitle": "Delete this task?",
+    "deleteDescription": "“{{title}}” will be removed. This cannot be undone.",
+    "addToColumn": "Add task to {{status}}",
+    "emptyColumn": "Drop tasks here",
+    "due": "Due {{date}}",
+    "overdue": "Overdue since {{date}}",
+    "view": {
+      "label": "View",
+      "board": "Board",
+      "list": "List"
+    },
+    "filters": {
+      "search": "Search tasks…",
+      "allTypes": "All types",
+      "allPriorities": "All priorities",
+      "clear": "Clear filters"
+    },
+    "columns": {
+      "title": "Title",
+      "status": "Status",
+      "priority": "Priority",
+      "dueDate": "Due",
+      "updatedAt": "Updated"
+    },
+    "noResults": {
+      "title": "No matching tasks",
+      "description": "Try changing or clearing the filters."
+    },
+    "empty": {
+      "title": "No tasks yet",
+      "description": "Break the project down into features, bugfixes and chores."
+    }
+  },
+  "dashboard": {
+    "description": "An overview of all your active projects.",
+    "stats": {
+      "activeProjects": "Active projects",
+      "openTasks": "Open tasks",
+      "inProgress": "In progress",
+      "overdue": "Overdue"
+    },
+    "projects": "Projects",
+    "deadlines": "Upcoming deadlines",
+    "noDeadlines": "Nothing due in the next 7 days.",
+    "overdueCount": "{{count}} overdue",
+    "dueSoonCount": "{{count}} due soon"
+  },
+  "settings": {
+    "description": "Preferences and data management.",
+    "appearance": {
+      "title": "Appearance",
+      "description": "Choose how Shipyard looks on this device.",
+      "system": "System",
+      "light": "Light",
+      "dark": "Dark"
+    },
+    "data": {
+      "title": "Data",
+      "description": "Your data is stored locally in this browser (IndexedDB). Export regularly to keep a backup.",
+      "export": "Export JSON",
+      "exportDescription": "Download all projects and tasks as a JSON file.",
+      "exported": "Backup exported",
+      "import": "Import JSON",
+      "importDescription": "Restore projects and tasks from a backup file.",
+      "importTitle": "Import backup",
+      "importSummary": "The file contains {{projects}} projects and {{tasks}} tasks, exported on {{date}}.",
+      "merge": "Merge",
+      "mergeDescription": "Add new items and update the ones that are older than the backup.",
+      "replace": "Replace",
+      "replaceDescription": "Delete all current data and use the backup instead.",
+      "importConfirm": "Import",
+      "imported": "Imported {{projects}} projects and {{tasks}} tasks",
+      "invalidFile": "Could not import the file"
+    },
+    "danger": {
+      "title": "Danger zone",
+      "description": "Remove all projects and tasks stored on this device.",
+      "clear": "Delete all data",
+      "clearTitle": "Delete all data?",
+      "clearDescription": "All projects and tasks stored on this device will be deleted. Export a backup first if you want to keep them.",
+      "cleared": "All data deleted"
+    }
+  }
+}
