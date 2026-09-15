@@ -81,3 +81,9 @@ See [AGENTS.md](AGENTS.md) for the detailed technical and functional documentati
 - **Remote database**: a new repository implementation (e.g. Supabase/Postgres or a custom API) with Dexie as offline cache.
 - Route-level code splitting to reduce the initial bundle.
 - Italian translation.
+
+## License
+
+Copyright © 2026 [antonioalbertosabatini](https://github.com/antonioalbertosabatini).
+
+Shipyard is source-available under the [PolyForm Strict License 1.0.0](LICENSE). You may use it for noncommercial purposes only; distributing it or making changes or new works based on it is not permitted. For any other use, contact the author.

@@ -247,8 +247,15 @@ UI components ──> feature hooks (TanStack Query) ──> Repositories interf
 
 ---
 
-## 9. Changelog of this document
+## 9. License
+
+- The project is licensed under **PolyForm Strict License 1.0.0** (`LICENSE`, official text, keep it verbatim). It is not an open-source license: noncommercial use only, no distribution, no derivative works.
+- `package.json` uses `"license": "SEE LICENSE IN LICENSE"` because PolyForm Strict has no SPDX identifier.
+- Before adding a dependency, check that its license is compatible with proprietary/source-available distribution (MIT, Apache-2.0, BSD, ISC are fine; avoid GPL/AGPL).
+
+## 10. Changelog of this document
 
 Add a line for every change that updates this guide (newest first).
 
+- 2026-09-15 — Added PolyForm Strict License 1.0.0 and the license section.
 - 2026-09-15 — Initial version: MVP (projects, tasks, kanban, list, filters, dashboard, backup, theme, responsive layout).
