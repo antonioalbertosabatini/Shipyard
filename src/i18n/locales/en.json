@@ -12,7 +12,8 @@
     "create": "Create",
     "delete": "Delete",
     "edit": "Edit",
-    "moreActions": "More actions"
+    "moreActions": "More actions",
+    "loading": "Loading…"
   },
   "errors": {
     "generic": "Something went wrong. Please try again.",
@@ -27,6 +28,112 @@
     "required": "This field is required.",
     "tooLong": "Must be at most {{max}} characters.",
     "url": "Enter a valid web address, starting with https://"
+  },
+  "auth": {
+    "fields": {
+      "email": "Email",
+      "password": "Password",
+      "currentPassword": "Current password",
+      "newPassword": "New password",
+      "confirmPassword": "Confirm password"
+    },
+    "validation": {
+      "email": "Enter a valid email address.",
+      "passwordTooShort": "Use at least {{min}} characters.",
+      "passwordMismatch": "Passwords do not match."
+    },
+    "continueLocal": "Continue without an account",
+    "backToLogin": "Back to sign in",
+    "notConfigured": {
+      "title": "Cloud sync is not configured",
+      "description": "Shipyard is running in local-only mode: your data stays in this browser. Add the Supabase settings to enable accounts and sync."
+    },
+    "login": {
+      "title": "Sign in",
+      "description": "Sign in to sync your projects across your devices.",
+      "action": "Sign in",
+      "submit": "Sign in",
+      "forgot": "Forgot password?",
+      "noAccount": "Don't have an account?"
+    },
+    "signup": {
+      "title": "Create an account",
+      "description": "Back up your projects and use them on all your devices.",
+      "link": "Create one",
+      "submit": "Create account",
+      "hasAccount": "Already have an account?",
+      "checkEmailTitle": "Check your email",
+      "checkEmail": "We sent a confirmation link to {{email}}. Open it to activate your account, then sign in."
+    },
+    "forgot": {
+      "title": "Reset your password",
+      "description": "Enter your account email and we will send you a link to choose a new password.",
+      "submit": "Send reset link",
+      "sent": "If an account exists for {{email}}, you will receive an email with a reset link shortly."
+    },
+    "reset": {
+      "title": "Choose a new password",
+      "description": "Enter a new password for {{email}}.",
+      "submit": "Update password",
+      "done": "Password updated",
+      "invalidTitle": "Link expired or invalid",
+      "invalidDescription": "Password reset links can be used only once and expire after a while. Request a new one to continue.",
+      "requestNew": "Request a new link"
+    },
+    "account": {
+      "title": "Account",
+      "description": "Your profile, sync status and security.",
+      "profile": "Profile",
+      "memberSince": "Member since",
+      "syncTitle": "Sync",
+      "syncDescription": "Projects and tasks are stored on this device and synced with your account.",
+      "status": "Status",
+      "lastSynced": "Last synced",
+      "never": "Not yet",
+      "pending": "Changes waiting to upload",
+      "syncNow": "Sync now",
+      "synced": "Sync complete",
+      "syncFailed": "Sync failed. It will be retried automatically.",
+      "passwordTitle": "Change password",
+      "passwordDescription": "Enter your current password, then choose a new one.",
+      "passwordSubmit": "Change password",
+      "passwordChanged": "Password changed"
+    },
+    "logout": {
+      "action": "Sign out",
+      "title": "Sign out?",
+      "description": "You are signed in as {{email}}. Projects and tasks stored on this device will be removed; they remain safe in your account.",
+      "pending": "Changes not synced yet: {{count}}. They will be uploaded before signing out.",
+      "confirm": "Sign out",
+      "unsyncedTitle": "Some changes were not uploaded",
+      "unsynced": "Changes that could not be uploaded: {{count}}. If you sign out now they will be lost.",
+      "retry": "Try again",
+      "force": "Sign out anyway",
+      "done": "Signed out"
+    },
+    "errors": {
+      "invalidCredentials": "Incorrect email or password.",
+      "wrongPassword": "The current password is incorrect.",
+      "emailNotConfirmed": "Confirm your email address first: check your inbox for the confirmation link.",
+      "userExists": "An account with this email already exists.",
+      "weakPassword": "This password is too weak. Choose a longer or less common one.",
+      "samePassword": "The new password must be different from the current one.",
+      "invalidEmail": "This email address is not valid.",
+      "signupDisabled": "New sign-ups are disabled.",
+      "rateLimited": "Too many attempts. Wait a moment and try again.",
+      "linkExpired": "This link has expired or was already used.",
+      "network": "Cannot reach the server. Check your connection and try again.",
+      "generic": "Something went wrong. Please try again."
+    }
+  },
+  "sync": {
+    "status": {
+      "synced": "Synced",
+      "pending": "Changes waiting to sync",
+      "syncing": "Syncing…",
+      "offline": "Offline, changes are saved on this device",
+      "error": "Sync error, retrying"
+    }
   },
   "project": {
     "new": "New project",
@@ -167,9 +274,18 @@
       "light": "Light",
       "dark": "Dark"
     },
+    "account": {
+      "title": "Account & sync",
+      "notConfigured": "Cloud sync is not configured: your data stays in this browser.",
+      "signedOut": "Sign in to back up your projects and sync them across your devices.",
+      "signedIn": "Signed in as {{email}}",
+      "manage": "Manage account",
+      "signUp": "Create account"
+    },
     "data": {
       "title": "Data",
       "description": "Your data is stored locally in this browser (IndexedDB). Export regularly to keep a backup.",
+      "descriptionSynced": "Your data is stored on this device and synced with your account. You can also export a JSON backup.",
       "export": "Export JSON",
       "exportDescription": "Download all projects and tasks as a JSON file.",
       "exported": "Backup exported",
@@ -188,9 +304,11 @@
     "danger": {
       "title": "Danger zone",
       "description": "Remove all projects and tasks stored on this device.",
+      "descriptionSynced": "Remove all projects and tasks from your account and every synced device.",
       "clear": "Delete all data",
       "clearTitle": "Delete all data?",
       "clearDescription": "All projects and tasks stored on this device will be deleted. Export a backup first if you want to keep them.",
+      "clearDescriptionSynced": "All projects and tasks will be deleted from this device, your account and every synced device. Export a backup first if you want to keep them.",
       "cleared": "All data deleted"
     }
   }

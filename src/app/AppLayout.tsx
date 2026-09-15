@@ -1,8 +1,10 @@
-import { FolderKanban, LayoutDashboard, Settings, Ship } from 'lucide-react'
+import { FolderKanban, LayoutDashboard, Settings } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
-import { Link, NavLink, Outlet } from 'react-router'
+import { NavLink, Outlet } from 'react-router'
+import { Brand } from '@/components/Brand'
 import { cn } from '@/lib/utils'
 import { useProjects } from '@/features/projects/hooks'
+import { SyncStatusIndicator } from '@/features/sync/SyncStatusIndicator'
 
 const NAV_ITEMS = [
   { to: '/', end: true, icon: LayoutDashboard, label: 'nav.dashboard' },
@@ -15,17 +17,6 @@ const sidebarLink = ({ isActive }: { isActive: boolean }) =>
     'flex h-8 items-center gap-2 rounded-md px-2 text-sm text-sidebar-foreground/80 transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground',
     isActive && 'bg-sidebar-accent font-medium text-sidebar-accent-foreground',
   )
-
-function Brand() {
-  return (
-    <Link to="/" className="flex items-center gap-2 font-heading font-semibold">
-      <span className="flex size-7 items-center justify-center rounded-md bg-primary text-primary-foreground">
-        <Ship className="size-4" />
-      </span>
-      Shipyard
-    </Link>
-  )
-}
 
 export function AppLayout() {
   const { t } = useTranslation()
@@ -67,10 +58,14 @@ export function AppLayout() {
             </nav>
           </div>
         )}
+        <div className="mt-auto px-2 pb-3 empty:hidden">
+          <SyncStatusIndicator variant="sidebar" />
+        </div>
       </aside>
 
-      <header className="sticky top-0 z-30 flex min-h-14 items-center border-b bg-background/80 px-4 pt-[env(safe-area-inset-top)] backdrop-blur md:hidden">
+      <header className="sticky top-0 z-30 flex min-h-14 items-center justify-between gap-2 border-b bg-background/80 px-4 pt-[env(safe-area-inset-top)] backdrop-blur md:hidden">
         <Brand />
+        <SyncStatusIndicator variant="header" />
       </header>
 
       <main className="md:pl-60">

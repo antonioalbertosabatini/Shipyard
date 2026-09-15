@@ -31,7 +31,9 @@ export interface TaskRepository {
 
 export interface BackupRepository {
   exportAll(): Promise<Backup>
+  /** `replace` stamps imported rows as the newest version so they win on synced devices too. */
   importAll(backup: Backup, mode: ImportMode): Promise<ImportResult>
+  /** Soft-deletes every project and task, so the reset propagates through sync. */
   clearAll(): Promise<void>
 }
 

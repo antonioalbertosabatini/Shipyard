@@ -1,3 +1,4 @@
+import { Dexie } from 'dexie'
 import { beforeEach, describe, expect, it } from 'vitest'
 import type { TaskInput } from '@/domain/schemas'
 import { createId } from '@/lib/id'
@@ -14,10 +15,12 @@ const taskInput = (overrides: Partial<TaskInput> = {}): TaskInput => ({
   ...overrides,
 })
 
+let db: ShipyardDB
 let repos: Repositories
 
 beforeEach(() => {
-  repos = createDexieRepositories(new ShipyardDB(`test-${createId()}`))
+  db = new ShipyardDB(`test-${createId()}`)
+  repos = createDexieRepositories(db)
 })
 
 describe('projects', () => {
@@ -56,7 +59,9 @@ describe('projects', () => {
 
 describe('tasks', () => {
   it('refuses tasks for unknown projects', async () => {
-    await expect(repos.tasks.create('missing', taskInput())).rejects.toBeInstanceOf(EntityNotFoundError)
+    await expect(repos.tasks.create('missing', taskInput())).rejects.toBeInstanceOf(
+      EntityNotFoundError,
+    )
   })
 
   it('appends new tasks to the bottom of their column', async () => {
@@ -95,7 +100,8 @@ describe('tasks', () => {
   it('renumbers a column when positions run out of precision', async () => {
     const { id } = await repos.projects.create(projectInput)
     const tasks = []
-    for (const title of ['A', 'B', 'C']) tasks.push(await repos.tasks.create(id, taskInput({ title })))
+    for (const title of ['A', 'B', 'C'])
+      tasks.push(await repos.tasks.create(id, taskInput({ title })))
     const [, , c] = tasks
 
     // Repeatedly insert C between the first two items until the gap collapses.
@@ -121,11 +127,27 @@ describe('backup', () => {
     await repos.backup.clearAll()
     expect(await repos.projects.list()).toEqual([])
 
-    await expect(repos.backup.importAll(backup, 'replace')).resolves.toEqual({ projects: 1, tasks: 1 })
-    expect(await repos.backup.exportAll()).toMatchObject({
-      projects: backup.projects,
-      tasks: backup.tasks,
+    await expect(repos.backup.importAll(backup, 'replace')).resolves.toEqual({
+      projects: 1,
+      tasks: 1,
     })
+    // Imported rows are stamped as the newest version so they also win on synced devices.
+    const restored = await repos.backup.exportAll()
+    const anyTimestamp = { updatedAt: expect.any(String) }
+    expect(restored.projects).toEqual(backup.projects.map((p) => ({ ...p, ...anyTimestamp })))
+    expect(restored.tasks).toEqual(backup.tasks.map((t) => ({ ...t, ...anyTimestamp })))
+    expect(restored.projects[0]!.updatedAt > backup.projects[0]!.updatedAt).toBe(true)
+  })
+
+  it('replace soft-deletes local rows missing from the backup', async () => {
+    const kept = await repos.projects.create(projectInput)
+    const backup = await repos.backup.exportAll()
+    const dropped = await repos.projects.create({ ...projectInput, name: 'Dropped' })
+
+    await repos.backup.importAll(backup, 'replace')
+
+    expect((await repos.projects.list()).map((p) => p.id)).toEqual([kept.id])
+    expect((await db.projects.get(dropped.id))?.deletedAt).toBeDefined()
   })
 
   it('merges keeping the most recently updated copy', async () => {
@@ -143,5 +165,68 @@ describe('backup', () => {
 
     expect(result).toEqual({ projects: 1, tasks: 0 })
     expect((await repos.projects.list()).map((p) => p.name)).toEqual(['Imported', 'Renamed'])
+  })
+
+  it('clears data with tombstones, so the reset can sync', async () => {
+    const project = await repos.projects.create(projectInput)
+    await repos.tasks.create(project.id, taskInput())
+
+    await repos.backup.clearAll()
+
+    expect(await repos.projects.list()).toEqual([])
+    expect((await db.projects.toArray()).every((p) => p.deletedAt)).toBe(true)
+    expect((await db.tasks.toArray()).every((t) => t.deletedAt)).toBe(true)
+  })
+})
+
+describe('sync bookkeeping', () => {
+  it('queues every write in the outbox with the version written', async () => {
+    const project = await repos.projects.create(projectInput)
+    const task = await repos.tasks.create(project.id, taskInput())
+    const moved = await repos.tasks.move(task.id, 'done', 0)
+
+    const outbox = await db.outbox.toArray()
+    expect(outbox).toHaveLength(2)
+    expect(outbox).toContainEqual({
+      table: 'projects',
+      id: project.id,
+      updatedAt: project.updatedAt,
+    })
+    expect(outbox).toContainEqual({ table: 'tasks', id: task.id, updatedAt: moved.updatedAt })
+  })
+
+  it('stamps edits after the version they replace, even if it comes from the future', async () => {
+    const project = await repos.projects.create(projectInput)
+    const future = '2099-01-01T00:00:00.000Z'
+    await db.projects.update(project.id, { updatedAt: future })
+
+    const updated = await repos.projects.update(project.id, { ...projectInput, name: 'Later' })
+
+    expect(updated.updatedAt).toBe('2099-01-01T00:00:00.001Z')
+  })
+
+  it('queues existing rows when upgrading from schema version 1', async () => {
+    const name = `test-${createId()}`
+    const timestamp = '2026-09-15T10:00:00.000Z'
+    const legacy = new Dexie(name)
+    legacy.version(1).stores({
+      projects: 'id, updatedAt',
+      tasks: 'id, projectId, [projectId+status], updatedAt',
+    })
+    await legacy.table('projects').put({
+      id: 'p1',
+      name: 'Legacy',
+      color: '#6366f1',
+      archived: false,
+      createdAt: timestamp,
+      updatedAt: timestamp,
+    })
+    legacy.close()
+
+    const upgraded = new ShipyardDB(name)
+    expect(await upgraded.outbox.toArray()).toEqual([
+      { table: 'projects', id: 'p1', updatedAt: timestamp },
+    ])
+    upgraded.close()
   })
 })
