@@ -29,6 +29,7 @@ import { useProjectView } from '@/features/tasks/useProjectView'
 import { todayISO } from '@/lib/dates'
 import { useProject } from './hooks'
 import { ProjectActionsMenu } from './ProjectActionsMenu'
+import { ProjectGlyph } from './ProjectGlyph'
 
 interface TaskDialogState {
   open: boolean
@@ -93,10 +94,7 @@ export function ProjectPage() {
 
         <PageHeader
           leading={
-            <span
-              className="mt-2.5 size-3 shrink-0 rounded-full"
-              style={{ backgroundColor: project.color }}
-            />
+            <ProjectGlyph project={project} className="mt-1 size-6" dotClassName="mt-2.5 size-3" />
           }
           title={
             <span className="flex flex-wrap items-center gap-2">

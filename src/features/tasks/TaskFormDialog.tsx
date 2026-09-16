@@ -7,6 +7,7 @@ import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { z } from 'zod'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
+import { IconPicker } from '@/components/IconPicker'
 import { ResponsiveDialog } from '@/components/ResponsiveDialog'
 import { Button } from '@/components/ui/button'
 import { Field, FieldError, FieldGroup, FieldLabel } from '@/components/ui/field'
@@ -20,12 +21,14 @@ import {
 } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import {
+  TASK_EFFORTS,
   TASK_PRIORITIES,
   TASK_STATUSES,
   TASK_TYPES,
   type TaskStatus,
 } from '@/domain/constants'
 import {
+  taskEffortSchema,
   taskPrioritySchema,
   taskStatusSchema,
   taskTypeSchema,
@@ -33,7 +36,11 @@ import {
   type TaskInput,
 } from '@/domain/schemas'
 import { useCreateTask, useDeleteTask, useUpdateTask } from './hooks'
+import { EffortBadge } from './TaskBadges'
 import { TASK_PRIORITY_STYLES, TASK_STATUS_STYLES, TASK_TYPE_STYLES } from './taskStyles'
+
+/** Radix `Select` cannot hold an empty value, so "no estimate" needs a sentinel. */
+const NO_EFFORT = 'none'
 
 function makeSchema(t: TFunction) {
   return z.object({
@@ -46,6 +53,8 @@ function makeSchema(t: TFunction) {
     type: taskTypeSchema,
     status: taskStatusSchema,
     priority: taskPrioritySchema,
+    effort: z.union([z.literal(NO_EFFORT), taskEffortSchema]),
+    icon: z.string(),
     dueDate: z.union([z.literal(''), z.iso.date()]),
   })
 }
@@ -58,6 +67,8 @@ const toInput = (values: FormValues): TaskInput => ({
   type: values.type,
   status: values.status,
   priority: values.priority,
+  effort: values.effort === NO_EFFORT ? undefined : values.effort,
+  icon: values.icon || undefined,
   dueDate: values.dueDate || undefined,
 })
 
@@ -111,6 +122,34 @@ function EnumSelect({
   )
 }
 
+function EffortSelect({ id, control }: { id: string; control: Control<FormValues> }) {
+  const { t } = useTranslation()
+  return (
+    <Field>
+      <FieldLabel htmlFor={`${id}-effort`}>{t('task.fields.effort')}</FieldLabel>
+      <Controller
+        control={control}
+        name="effort"
+        render={({ field }) => (
+          <Select value={field.value} onValueChange={field.onChange}>
+            <SelectTrigger id={`${id}-effort`} className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={NO_EFFORT}>{t('task.effort.none')}</SelectItem>
+              {TASK_EFFORTS.map((effort) => (
+                <SelectItem key={effort} value={effort}>
+                  <EffortBadge effort={effort} withLabel />
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
+      />
+    </Field>
+  )
+}
+
 function TaskForm({
   id,
   task,
@@ -137,6 +176,8 @@ function TaskForm({
       type: task?.type ?? 'feature',
       status: task?.status ?? defaultStatus,
       priority: task?.priority ?? 'medium',
+      effort: task?.effort ?? NO_EFFORT,
+      icon: task?.icon ?? '',
       dueDate: task?.dueDate ?? '',
     },
   })
@@ -159,12 +200,26 @@ function TaskForm({
           <EnumSelect id={id} name="type" control={control} />
           <EnumSelect id={id} name="status" control={control} />
           <EnumSelect id={id} name="priority" control={control} />
-          <Field data-invalid={!!errors.dueDate}>
+          <EffortSelect id={id} control={control} />
+          <Field data-invalid={!!errors.dueDate} className="col-span-2">
             <FieldLabel htmlFor={`${id}-due`}>{t('task.fields.dueDate')}</FieldLabel>
             <Input id={`${id}-due`} type="date" {...register('dueDate')} />
             <FieldError errors={[errors.dueDate]} />
           </Field>
         </div>
+
+        <Field>
+          <FieldLabel id={`${id}-icon`} asChild>
+            <span>{t('task.fields.icon')}</span>
+          </FieldLabel>
+          <Controller
+            control={control}
+            name="icon"
+            render={({ field }) => (
+              <IconPicker labelId={`${id}-icon`} value={field.value} onChange={field.onChange} />
+            )}
+          />
+        </Field>
 
         <Field data-invalid={!!errors.description}>
           <FieldLabel htmlFor={`${id}-description`}>{t('task.fields.description')}</FieldLabel>

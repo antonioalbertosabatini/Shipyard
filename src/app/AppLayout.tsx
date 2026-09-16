@@ -4,6 +4,7 @@ import { NavLink, Outlet } from 'react-router'
 import { Brand } from '@/components/Brand'
 import { cn } from '@/lib/utils'
 import { useProjects } from '@/features/projects/hooks'
+import { ProjectGlyph } from '@/features/projects/ProjectGlyph'
 import { SyncStatusIndicator } from '@/features/sync/SyncStatusIndicator'
 
 const NAV_ITEMS = [
@@ -48,10 +49,7 @@ export function AppLayout() {
             >
               {activeProjects.map((project) => (
                 <NavLink key={project.id} to={`/projects/${project.id}`} className={sidebarLink}>
-                  <span
-                    className="size-2.5 shrink-0 rounded-full"
-                    style={{ backgroundColor: project.color }}
-                  />
+                  <ProjectGlyph project={project} className="size-4" dotClassName="size-2.5" />
                   <span className="truncate">{project.name}</span>
                 </NavLink>
               ))}

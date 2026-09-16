@@ -1,5 +1,6 @@
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router'
+import { EntityIcon } from '@/components/EntityIcon'
 import { Badge } from '@/components/ui/badge'
 import {
   Card,
@@ -24,6 +25,11 @@ export function ProjectCard({ project, stats }: { project: Project; stats: Proje
       <div className="absolute inset-x-0 top-0 h-1" style={{ backgroundColor: project.color }} />
       <CardHeader>
         <CardTitle className="flex min-w-0 items-center gap-2">
+          <EntityIcon
+            name={project.icon}
+            className="size-4.5 shrink-0"
+            style={{ color: project.color }}
+          />
           <Link
             to={`/projects/${project.id}`}
             className="truncate outline-none after:absolute after:inset-0 after:rounded-xl focus-visible:after:ring-3 focus-visible:after:ring-ring/50"

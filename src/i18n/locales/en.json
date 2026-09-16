@@ -29,6 +29,10 @@
     "tooLong": "Must be at most {{max}} characters.",
     "url": "Enter a valid web address, starting with https://"
   },
+  "icon": {
+    "none": "No icon",
+    "label": "Icon {{name}}"
+  },
   "auth": {
     "fields": {
       "email": "Email",
@@ -146,6 +150,7 @@
       "description": "Description",
       "descriptionPlaceholder": "What is this project about?",
       "color": "Color",
+      "icon": "Icon",
       "repoUrl": "Repository URL",
       "liveUrl": "Live URL"
     },
@@ -194,6 +199,8 @@
       "type": "Type",
       "status": "Status",
       "priority": "Priority",
+      "effort": "Effort",
+      "icon": "Icon",
       "dueDate": "Due date"
     },
     "type": {
@@ -214,6 +221,14 @@
       "medium": "Medium",
       "high": "High",
       "critical": "Critical"
+    },
+    "effort": {
+      "none": "No estimate",
+      "xs": "Extra small",
+      "s": "Small",
+      "m": "Medium",
+      "l": "Large",
+      "xl": "Extra large"
     },
     "created": "Task created",
     "updated": "Task updated",
@@ -239,6 +254,7 @@
       "title": "Title",
       "status": "Status",
       "priority": "Priority",
+      "effort": "Effort",
       "dueDate": "Due",
       "updatedAt": "Updated"
     },

@@ -6,6 +6,7 @@ const project: Project = {
   id: 'p1',
   name: 'Portfolio',
   color: '#6366f1',
+  icon: 'rocket',
   archived: false,
   createdAt: '2026-09-15T10:00:00.000Z',
   updatedAt: '2026-09-15T11:00:00.000Z',
@@ -19,6 +20,8 @@ const task: Task = {
   type: 'bugfix',
   status: 'done',
   priority: 'high',
+  effort: 'l',
+  icon: 'bug',
   dueDate: '2026-10-01',
   order: 1500.5,
   createdAt: '2026-09-15T10:00:00.000Z',
@@ -67,9 +70,18 @@ describe('task mapping', () => {
       description: null,
       due_date: null,
       completed_at: null,
+      effort: null,
+      icon: null,
     })
     expect(minimal).not.toHaveProperty('description')
     expect(minimal).not.toHaveProperty('dueDate')
+    expect(minimal).not.toHaveProperty('effort')
+    expect(minimal).not.toHaveProperty('icon')
     expect(rowToTask({ ...taskToRow(task), status: 'archived' })).toBeNull()
+    expect(rowToTask({ ...taskToRow(task), effort: 'huge' })).toBeNull()
+  })
+
+  it('keeps rows whose icon is unknown to this client', () => {
+    expect(rowToTask({ ...taskToRow(task), icon: 'from-the-future' })?.icon).toBe('from-the-future')
   })
 })

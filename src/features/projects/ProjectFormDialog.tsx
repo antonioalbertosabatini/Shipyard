@@ -5,6 +5,7 @@ import { Controller, useForm } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { z } from 'zod'
+import { IconPicker } from '@/components/IconPicker'
 import { ResponsiveDialog } from '@/components/ResponsiveDialog'
 import { Button } from '@/components/ui/button'
 import { Field, FieldError, FieldGroup, FieldLabel } from '@/components/ui/field'
@@ -28,6 +29,7 @@ function makeSchema(t: TFunction) {
       .max(100, t('validation.tooLong', { max: 100 })),
     description: z.string().max(2000, t('validation.tooLong', { max: 2000 })),
     color: z.string(),
+    icon: z.string(),
     repoUrl: optionalUrl,
     liveUrl: optionalUrl,
   })
@@ -39,6 +41,7 @@ const toInput = (values: FormValues): ProjectInput => ({
   name: values.name.trim(),
   description: values.description.trim() || undefined,
   color: values.color,
+  icon: values.icon || undefined,
   repoUrl: values.repoUrl.trim() || undefined,
   liveUrl: values.liveUrl.trim() || undefined,
 })
@@ -65,6 +68,7 @@ function ProjectForm({
       name: project?.name ?? '',
       description: project?.description ?? '',
       color: project?.color ?? DEFAULT_PROJECT_COLOR,
+      icon: project?.icon ?? '',
       repoUrl: project?.repoUrl ?? '',
       liveUrl: project?.liveUrl ?? '',
     },
@@ -104,7 +108,11 @@ function ProjectForm({
             control={control}
             name="color"
             render={({ field }) => (
-              <div role="radiogroup" aria-labelledby={`${id}-color`} className="flex flex-wrap gap-2">
+              <div
+                role="radiogroup"
+                aria-labelledby={`${id}-color`}
+                className="flex flex-wrap gap-2"
+              >
                 {PROJECT_COLORS.map((color) => (
                   <button
                     key={color}
@@ -121,6 +129,19 @@ function ProjectForm({
                   />
                 ))}
               </div>
+            )}
+          />
+        </Field>
+
+        <Field>
+          <FieldLabel id={`${id}-icon`} asChild>
+            <span>{t('project.fields.icon')}</span>
+          </FieldLabel>
+          <Controller
+            control={control}
+            name="icon"
+            render={({ field }) => (
+              <IconPicker labelId={`${id}-icon`} value={field.value} onChange={field.onChange} />
             )}
           />
         </Field>

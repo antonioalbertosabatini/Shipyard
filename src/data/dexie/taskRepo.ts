@@ -74,7 +74,7 @@ export function createDexieTaskRepository(db: ShipyardDB): TaskRepository {
     update(id, input) {
       return db.transaction('rw', db.tasks, db.outbox, async () => {
         const current = await getAlive(id)
-        const { title, description, type, status, priority, dueDate } = input
+        const { title, description, type, status, priority, effort, icon, dueDate } = input
         const timestamp = nextTimestamp(current.updatedAt)
         const statusChanged = status !== current.status
         return save({
@@ -84,6 +84,8 @@ export function createDexieTaskRepository(db: ShipyardDB): TaskRepository {
           type,
           status,
           priority,
+          effort,
+          icon,
           dueDate,
           order: statusChanged ? await bottomOrder(current.projectId, status, id) : current.order,
           completedAt: completedAtFor(current, status, timestamp),

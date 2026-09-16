@@ -44,13 +44,14 @@ export function createDexieProjectRepository(db: ShipyardDB): ProjectRepository 
 
     update(id, input) {
       return db.transaction('rw', db.projects, db.outbox, async () => {
-        const { name, description, color, repoUrl, liveUrl } = input
+        const { name, description, color, icon, repoUrl, liveUrl } = input
         const current = await getAlive(id)
         return save({
           ...current,
           name,
           description,
           color,
+          icon,
           repoUrl,
           liveUrl,
           updatedAt: nextTimestamp(current.updatedAt),

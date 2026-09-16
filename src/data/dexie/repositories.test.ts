@@ -43,6 +43,14 @@ describe('projects', () => {
     expect(await repos.projects.list()).toHaveLength(1)
   })
 
+  it('sets and clears the icon', async () => {
+    const created = await repos.projects.create({ ...projectInput, icon: 'rocket' })
+    expect(created.icon).toBe('rocket')
+
+    const cleared = await repos.projects.update(created.id, projectInput)
+    expect(cleared).not.toHaveProperty('icon')
+  })
+
   it('removes a project together with its tasks', async () => {
     const project = await repos.projects.create(projectInput)
     await repos.tasks.create(project.id, taskInput())
@@ -69,6 +77,16 @@ describe('tasks', () => {
     const a = await repos.tasks.create(id, taskInput({ title: 'A' }))
     const b = await repos.tasks.create(id, taskInput({ title: 'B' }))
     expect(b.order).toBeGreaterThan(a.order)
+  })
+
+  it('sets and clears the effort and the icon', async () => {
+    const { id } = await repos.projects.create(projectInput)
+    const created = await repos.tasks.create(id, taskInput({ effort: 'xl', icon: 'bug' }))
+    expect(created).toMatchObject({ effort: 'xl', icon: 'bug' })
+
+    const cleared = await repos.tasks.update(created.id, taskInput())
+    expect(cleared).not.toHaveProperty('effort')
+    expect(cleared).not.toHaveProperty('icon')
   })
 
   it('tracks completedAt through status changes', async () => {

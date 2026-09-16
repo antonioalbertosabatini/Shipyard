@@ -1,9 +1,10 @@
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import type { ComponentProps } from 'react'
+import { EntityIcon } from '@/components/EntityIcon'
 import type { Task } from '@/domain/schemas'
 import { cn } from '@/lib/utils'
-import { DueDate, PriorityIcon, TaskTypeBadge } from './TaskBadges'
+import { DueDate, EffortBadge, PriorityIcon, TaskTypeBadge } from './TaskBadges'
 
 export function TaskCard({ task, className, ...props }: { task: Task } & ComponentProps<'div'>) {
   return (
@@ -14,10 +15,14 @@ export function TaskCard({ task, className, ...props }: { task: Task } & Compone
       )}
       {...props}
     >
-      <p className="leading-snug font-medium break-words">{task.title}</p>
+      <p className="flex items-start gap-1.5 leading-snug font-medium break-words">
+        <EntityIcon name={task.icon} className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
+        {task.title}
+      </p>
       <div className="flex flex-wrap items-center gap-2">
         <TaskTypeBadge type={task.type} />
         <PriorityIcon priority={task.priority} />
+        {task.effort && <EffortBadge effort={task.effort} />}
         <span className="ml-auto">
           <DueDate task={task} />
         </span>

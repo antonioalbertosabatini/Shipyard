@@ -9,6 +9,7 @@ export interface ProjectRow {
   name: string
   description: string | null
   color: string
+  icon: string | null
   repo_url: string | null
   live_url: string | null
   archived: boolean
@@ -26,6 +27,8 @@ export interface TaskRow {
   type: string
   status: string
   priority: string
+  effort: string | null
+  icon: string | null
   due_date: string | null
   order: number
   created_at: string
@@ -44,6 +47,7 @@ export const projectToRow = (project: Project): ProjectRow => ({
   name: project.name,
   description: project.description ?? null,
   color: project.color,
+  icon: project.icon ?? null,
   repo_url: project.repoUrl ?? null,
   live_url: project.liveUrl ?? null,
   archived: project.archived,
@@ -60,6 +64,8 @@ export const taskToRow = (task: Task): TaskRow => ({
   type: task.type,
   status: task.status,
   priority: task.priority,
+  effort: task.effort ?? null,
+  icon: task.icon ?? null,
   due_date: task.dueDate ?? null,
   order: task.order,
   created_at: task.createdAt,
@@ -76,6 +82,7 @@ export function rowToProject(row: ProjectRow): Project | null {
       name: row.name,
       description: row.description ?? undefined,
       color: row.color,
+      icon: row.icon ?? undefined,
       repoUrl: row.repo_url ?? undefined,
       liveUrl: row.live_url ?? undefined,
       archived: row.archived,
@@ -98,6 +105,8 @@ export function rowToTask(row: TaskRow): Task | null {
       type: row.type,
       status: row.status,
       priority: row.priority,
+      effort: row.effort ?? undefined,
+      icon: row.icon ?? undefined,
       dueDate: row.due_date ?? undefined,
       order: row.order,
       createdAt: normalizeTimestamp(row.created_at),

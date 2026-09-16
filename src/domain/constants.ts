@@ -1,10 +1,13 @@
 export const TASK_TYPES = ['feature', 'bugfix', 'improvement', 'chore', 'other'] as const
 export const TASK_STATUSES = ['backlog', 'todo', 'in_progress', 'done'] as const
 export const TASK_PRIORITIES = ['low', 'medium', 'high', 'critical'] as const
+/** T-shirt sizes, from the smallest to the largest estimate. */
+export const TASK_EFFORTS = ['xs', 's', 'm', 'l', 'xl'] as const
 
 export type TaskType = (typeof TASK_TYPES)[number]
 export type TaskStatus = (typeof TASK_STATUSES)[number]
 export type TaskPriority = (typeof TASK_PRIORITIES)[number]
+export type TaskEffort = (typeof TASK_EFFORTS)[number]
 
 export const PROJECT_COLORS = [
   '#6366f1',

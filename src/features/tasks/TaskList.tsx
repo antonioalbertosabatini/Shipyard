@@ -1,6 +1,7 @@
 import { ArrowDown, ArrowUp, ArrowUpDown } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { EntityIcon } from '@/components/EntityIcon'
 import {
   Table,
   TableBody,
@@ -12,11 +13,17 @@ import {
 import type { Task } from '@/domain/schemas'
 import { formatDate } from '@/lib/dates'
 import { sortTasks, type SortDirection, type TaskSortKey } from './filters'
-import { DueDate, PriorityIcon, StatusLabel, TaskTypeBadge } from './TaskBadges'
+import { DueDate, EffortBadge, PriorityIcon, StatusLabel, TaskTypeBadge } from './TaskBadges'
 
-const COLUMNS: TaskSortKey[] = ['title', 'status', 'priority', 'dueDate', 'updatedAt']
+const COLUMNS: TaskSortKey[] = ['title', 'status', 'priority', 'effort', 'dueDate', 'updatedAt']
 
-export function TaskList({ tasks, onOpenTask }: { tasks: Task[]; onOpenTask: (task: Task) => void }) {
+export function TaskList({
+  tasks,
+  onOpenTask,
+}: {
+  tasks: Task[]
+  onOpenTask: (task: Task) => void
+}) {
   const { t, i18n } = useTranslation()
   const [sort, setSort] = useState<{ key: TaskSortKey; direction: SortDirection }>({
     key: 'status',
@@ -41,7 +48,9 @@ export function TaskList({ tasks, onOpenTask }: { tasks: Task[]; onOpenTask: (ta
               return (
                 <TableHead
                   key={key}
-                  aria-sort={active ? (sort.direction === 'asc' ? 'ascending' : 'descending') : 'none'}
+                  aria-sort={
+                    active ? (sort.direction === 'asc' ? 'ascending' : 'descending') : 'none'
+                  }
                   className="first:pl-4"
                 >
                   <button
@@ -63,6 +72,7 @@ export function TaskList({ tasks, onOpenTask }: { tasks: Task[]; onOpenTask: (ta
               <TableCell className="max-w-md pl-4">
                 <div className="flex items-center gap-2">
                   <TaskTypeBadge type={task.type} />
+                  <EntityIcon name={task.icon} className="size-4 shrink-0 text-muted-foreground" />
                   <button
                     type="button"
                     className="truncate text-left font-medium hover:underline"
@@ -82,7 +92,18 @@ export function TaskList({ tasks, onOpenTask }: { tasks: Task[]; onOpenTask: (ta
                 <PriorityIcon priority={task.priority} withLabel />
               </TableCell>
               <TableCell>
-                {task.dueDate ? <DueDate task={task} /> : <span className="text-muted-foreground">—</span>}
+                {task.effort ? (
+                  <EffortBadge effort={task.effort} withLabel />
+                ) : (
+                  <span className="text-muted-foreground">—</span>
+                )}
+              </TableCell>
+              <TableCell>
+                {task.dueDate ? (
+                  <DueDate task={task} />
+                ) : (
+                  <span className="text-muted-foreground">—</span>
+                )}
               </TableCell>
               <TableCell className="text-xs text-muted-foreground">
                 {formatDate(task.updatedAt, i18n.language)}

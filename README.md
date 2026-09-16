@@ -56,8 +56,8 @@ Your existing local projects and tasks are uploaded on the first sign-in.
 
 ## Features
 
-- **Projects**: name, description, color, repository and live site links; archive and delete.
-- **Tasks**: type, status (Backlog → To do → In progress → Done), priority, due date, description.
+- **Projects**: name, description, color, optional icon, repository and live site links; archive and delete.
+- **Tasks**: type, status (Backlog → To do → In progress → Done), priority, optional effort (t-shirt sizes XS–XL), optional icon, due date, description.
 - **Kanban board** with drag & drop (mouse, touch with press-and-hold, keyboard with Space) and a sortable **list view**.
 - **Filters** by text, type and priority, kept in the URL.
 - **Dashboard**: completion percentage, counts by status and type, overdue and upcoming tasks.

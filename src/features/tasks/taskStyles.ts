@@ -14,11 +14,20 @@ import {
   Wrench,
   type LucideIcon,
 } from 'lucide-react'
-import type { TaskPriority, TaskStatus, TaskType } from '@/domain/constants'
+import type { TaskEffort, TaskPriority, TaskStatus, TaskType } from '@/domain/constants'
 
 interface Style {
   icon: LucideIcon
   className: string
+}
+
+/** Effort has no meaningful icon: it is rendered as its t-shirt size abbreviation. */
+export const TASK_EFFORT_STYLES: Record<TaskEffort, { short: string; className: string }> = {
+  xs: { short: 'XS', className: 'bg-muted text-muted-foreground' },
+  s: { short: 'S', className: 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300' },
+  m: { short: 'M', className: 'bg-sky-500/10 text-sky-700 dark:text-sky-300' },
+  l: { short: 'L', className: 'bg-amber-500/10 text-amber-700 dark:text-amber-300' },
+  xl: { short: 'XL', className: 'bg-red-500/10 text-red-700 dark:text-red-300' },
 }
 
 export const TASK_TYPE_STYLES: Record<TaskType, Style> = {

@@ -32,6 +32,16 @@ describe('parseBackup', () => {
     expect(result).toEqual({ success: true, data: backup })
   })
 
+  it('round-trips the optional effort and icons', () => {
+    const backup = buildBackup(
+      [{ ...project, icon: 'rocket' }],
+      [{ ...task, effort: 'm', icon: 'bug' }],
+      new Date(ts),
+    )
+    const result = parseBackup(JSON.stringify(backup))
+    expect(result).toEqual({ success: true, data: backup })
+  })
+
   it('rejects malformed JSON', () => {
     expect(parseBackup('{nope')).toEqual({ success: false, error: 'The file is not valid JSON.' })
   })

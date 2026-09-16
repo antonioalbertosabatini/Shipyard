@@ -20,13 +20,15 @@ Current state: an **offline-first web app** (runs with `npm run dev`). Data alwa
 
 ### Entities
 
-- **Project**: name, optional description, color (from a fixed palette), optional repository URL and live URL, archived flag.
+- **Project**: name, optional description, color (from a fixed palette), optional `icon`, optional repository URL and live URL, archived flag.
 - **Task** (belongs to a project):
-  - `title`, optional `description`
-  - `type`: `feature | bugfix | improvement | chore | other`
-  - `status` (fixed kanban workflow): `backlog → todo → in_progress → done`
-  - `priority`: `low | medium | high | critical`
-  - optional `dueDate` (calendar date)
+ - `title`, optional `description`
+ - `type`: `feature | bugfix | improvement | chore | other`
+ - `status` (fixed kanban workflow): `backlog → todo → in_progress → done`
+ - `priority`: `low | medium | high | critical`
+ - optional `effort` (t-shirt sizes): `xs | s | m | l | xl`
+ - optional `icon`
+ - optional `dueDate` (calendar date)
   - `order` (position within its status column)
   - `completedAt` (set automatically when the task enters `done`, cleared when it leaves)
 - Both carry `createdAt`, `updatedAt` (the version used for conflict resolution) and `deletedAt` (soft delete, synced as a tombstone).
@@ -56,6 +58,8 @@ Auth routes render full screen (`AuthLayout`, outside the app shell). In local-o
 - Editing a task and changing its status moves it to the bottom of the new column.
 - Drag & drop works with mouse (5px activation distance), touch (200ms press-and-hold, so scrolling still works) and keyboard (Space to pick up/drop, Enter to open the task).
 - Dragging works while filters are active: the position is mapped from the filtered board to the full column.
+- `effort` and `icon` are optional: when unset (or when the stored icon key is unknown to this build) the UI renders exactly as it did before they existed — no badge, and the project keeps its plain color dot.
+- Project icons appear on the project cards (dashboard and `/projects`), in the project header and in the sidebar, tinted with the project color. Task icons appear next to the title on the board and in the list.
 - Overdue = open task with `dueDate` before today. Done tasks are never overdue.
 - Deleting a project also deletes its tasks. Deletions ask for confirmation.
 - Import **merge** upserts by id keeping the copy with the newer `updatedAt`; **replace** soft-deletes local rows missing from the backup and writes the backup rows with a fresh `updatedAt`, so the backup also wins on synced devices. Backups are validated (Zod) and tasks must reference projects contained in the file.
@@ -139,8 +143,11 @@ src/
     PageHeader.tsx         # Title, description, actions
     ConfirmDialog.tsx      # Destructive confirmation (AlertDialog)
     ResponsiveDialog.tsx   # Dialog on desktop, bottom Sheet on mobile
+    icons.ts               # ENTITY_ICONS: curated lucide set for projects/tasks, ICON_REGISTRY
+    EntityIcon.tsx         # Renders a stored icon key; nothing when unset or unknown
+    IconPicker.tsx         # Radiogroup grid of ENTITY_ICONS with a "no icon" option
   domain/                  # Pure, framework-free model
-    constants.ts           # Enums (types, statuses, priorities), colors, ORDER_STEP
+    constants.ts           # Enums (types, statuses, priorities, efforts), colors, ORDER_STEP
     schemas.ts             # Zod schemas + inferred types (Project, Task, *Input)
     task.ts                # completedAtFor, placeAt, applyMove, isOverdue, sortByOrder
     backup.ts              # Backup schema/version, buildBackup, parseBackup
@@ -165,7 +172,8 @@ src/
     sync/                  # SyncProvider, useSyncController/useSyncState, syncStatus.ts,
                            # SyncStatusIcon, SyncStatusIndicator
     dashboard/             # stats.ts (pure), DashboardPage
-    projects/              # hooks, ProjectsPage, ProjectPage, ProjectCard, ProjectFormDialog, ProjectActionsMenu
+    projects/              # hooks, ProjectsPage, ProjectPage, ProjectCard, ProjectFormDialog, ProjectActionsMenu,
+                           # ProjectGlyph (icon tinted with the project color, or the color dot)
     tasks/                 # hooks, KanbanBoard, TaskCard, TaskList, TaskFormDialog, TaskFiltersBar,
                            # TaskBadges, taskStyles, filters.ts, boardUtils.ts, useProjectView
     settings/              # hooks, SettingsPage
@@ -205,7 +213,8 @@ UI components ──> feature hooks (TanStack Query) ──> Repositories interf
 - **Every new version of a row gets `updatedAt = nextTimestamp(previous.updatedAt)`** (or `nextTimestamp()` for new rows): the current time, but always at least 1 ms after the version it replaces.
 - **Soft delete**: `remove()` and `backup.clearAll()` set `deletedAt`; every read filters with `isAlive`. The only hard delete is `SyncController.clearLocalData()` (sign-out / owner change).
 - Optional fields are **absent** in storage, never `undefined`: rows pass through `compact()` before being written.
-- Update methods take the **full input** (`ProjectInput` / `TaskInput`), not partial patches, so clearing an optional field is unambiguous.
+- Update methods take the **full input** (`ProjectInput` / `TaskInput`), not partial patches, so clearing an optional field is unambiguous. They destructure the input field by field, so **a new field must be added there too**, otherwise it can be set but never cleared.
+- `icon` is validated as a **free string** (`iconNameSchema`), not as an enum: a key added to `ENTITY_ICONS` in a newer build must not make older clients reject the whole synced row. Unknown keys simply render nothing.
 - Repository methods that write run inside a Dexie transaction **that includes `db.outbox`**, and call `markDirty(db, table, rows)` for every written row. A write path that skips `markDirty` is never uploaded.
 - Dexie schema lives in `data/dexie/db.ts` (version 2: `outbox`, `meta`). Schema changes require a new `this.version(n)` with an upgrade function — never edit an existing version.
 
@@ -274,6 +283,9 @@ Strategy: **row-level last write wins on `updated_at`, with a server-assigned pu
 - An inner `*Form` component owns `useForm`. Radix unmounts dialog content when closed, so the form re-initializes with fresh default values on every open.
 - The submit button lives in the dialog footer and targets the form with `form={formId}` (`useId()`).
 - Form schemas are built with `makeSchema(t)` so validation messages are translated. Form values use `''` for empty optional fields; a `toInput()` function converts them to domain input (`undefined`).
+- Radix `Select` cannot hold an empty value, so an optional enum needs a sentinel option mapped back to `undefined` in `toInput()` (`NO_EFFORT` in `TaskFormDialog`).
+- Pickers that are not inputs (colors, icons) use `role="radiogroup"` + `role="radio"` buttons driven by a `Controller`.
+- **Never clear a field with `field.onChange(undefined)`**: react-hook-form reads values with `get(values, name, defaultValue)`, so `undefined` silently restores the default and the field looks unclearable. Use `''` (covered by `components/IconPicker.test.tsx`).
 - URLs are validated with `webUrlSchema` (http/https only) to prevent unsafe `href`s, including on imported backups and pulled rows.
 - Auth pages are not dialogs: `AuthCard` + `AuthField` (spread `register(name)` into it) + `AuthAlert` for form-level errors. Shared field schemas are in `features/auth/schemas.ts` (`emailSchema`, `passwordSchema` 8–72 chars, `passwordsMatch` + `passwordMismatch` refinement).
 
@@ -297,7 +309,7 @@ Strategy: **row-level last write wins on `updated_at`, with a server-assigned pu
 - Repository tests create an isolated DB per test: `new ShipyardDB(\`test-${createId()}\`)`.
 - Sync tests (`data/sync/SyncEngine.test.ts`) use an in-memory `FakeRemote` that mirrors the SQL trigger; simulate devices with separate DBs sharing one remote. Use long engine timers and drive syncs with `start`/`syncNow`/`flush` (no fake timers: they stall fake-indexeddb).
 - Component tests render pages inside `<AuthContext value={fakeAuth}>` + `MemoryRouter` (see `features/auth/authPages.test.tsx`).
-- Cover every new pure function and repository method. Existing suites: `domain/task.test.ts`, `domain/backup.test.ts`, `domain/sync.test.ts`, `data/dexie/repositories.test.ts`, `data/sync/mappers.test.ts`, `data/sync/SyncEngine.test.ts`, `features/dashboard/stats.test.ts`, `features/tasks/boardUtils.test.ts`, `features/auth/auth.test.ts`, `features/auth/authPages.test.tsx`, `features/sync/syncStatus.test.ts`.
+- Cover every new pure function and repository method. Existing suites: `domain/task.test.ts`, `domain/backup.test.ts`, `domain/sync.test.ts`, `data/dexie/repositories.test.ts`, `data/sync/mappers.test.ts`, `data/sync/SyncEngine.test.ts`, `features/dashboard/stats.test.ts`, `features/tasks/boardUtils.test.ts`, `features/tasks/filters.test.ts`, `components/IconPicker.test.tsx`, `features/auth/auth.test.ts`, `features/auth/authPages.test.tsx`, `features/sync/syncStatus.test.ts`.
 - Manual UI check: `npm run dev`. In dev, sample data can be seeded from the browser console with `const { createDexieRepositories } = await import('/src/data/index.ts')`, then reload the page.
 - Manual sync check: two browser profiles signed in to the same account; edits appear on the other within seconds (Realtime). Toggle DevTools offline to test the outbox.
 
@@ -340,6 +352,7 @@ Strategy: **row-level last write wins on `updated_at`, with a server-assigned pu
 
 Add a line for every change that updates this guide (newest first).
 
+- 2026-09-16 — Optional task `effort` (t-shirt sizes XS–XL, sortable in the list) and optional `icon` on projects and tasks (curated lucide set, `IconPicker`, `EntityIcon`, `ProjectGlyph`), with the matching Supabase migration.
 - 2026-09-15 — Supabase cloud sync (outbox, LWW with server cursor, realtime), email/password auth pages (login, signup, forgot/reset password, account with password change, logout), environment variables, SQL migration.
 - 2026-09-15 — Added PolyForm Strict License 1.0.0 and the license section.
 - 2026-09-15 — Initial version: MVP (projects, tasks, kanban, list, filters, dashboard, backup, theme, responsive layout).

@@ -1,12 +1,17 @@
 import { CalendarDays } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { Badge } from '@/components/ui/badge'
-import type { TaskPriority, TaskStatus, TaskType } from '@/domain/constants'
+import type { TaskEffort, TaskPriority, TaskStatus, TaskType } from '@/domain/constants'
 import type { Task } from '@/domain/schemas'
 import { isOverdue } from '@/domain/task'
 import { formatDate, todayISO } from '@/lib/dates'
 import { cn } from '@/lib/utils'
-import { TASK_PRIORITY_STYLES, TASK_STATUS_STYLES, TASK_TYPE_STYLES } from './taskStyles'
+import {
+  TASK_EFFORT_STYLES,
+  TASK_PRIORITY_STYLES,
+  TASK_STATUS_STYLES,
+  TASK_TYPE_STYLES,
+} from './taskStyles'
 
 export function TaskTypeBadge({ type, count }: { type: TaskType; count?: number }) {
   const { t } = useTranslation()
@@ -38,7 +43,31 @@ export function PriorityIcon({
   )
 }
 
-export function StatusLabel({ status, iconOnly = false }: { status: TaskStatus; iconOnly?: boolean }) {
+export function EffortBadge({
+  effort,
+  withLabel = false,
+}: {
+  effort: TaskEffort
+  withLabel?: boolean
+}) {
+  const { t } = useTranslation()
+  const { short, className } = TASK_EFFORT_STYLES[effort]
+  const label = t(`task.effort.${effort}`)
+  return (
+    <Badge variant="secondary" className={cn('font-mono', className)} title={label}>
+      {short}
+      <span className={withLabel ? 'font-sans' : 'sr-only'}>{label}</span>
+    </Badge>
+  )
+}
+
+export function StatusLabel({
+  status,
+  iconOnly = false,
+}: {
+  status: TaskStatus
+  iconOnly?: boolean
+}) {
   const { t } = useTranslation()
   const { icon: Icon, className } = TASK_STATUS_STYLES[status]
   return (
