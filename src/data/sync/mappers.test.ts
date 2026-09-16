@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest'
-import type { Project, Task } from '@/domain/schemas'
-import { projectToRow, rowToProject, rowToTask, taskToRow } from './mappers'
+import type { DocItem, Project, Task } from '@/domain/schemas'
+import {
+  docItemToRow,
+  projectToRow,
+  rowToDocItem,
+  rowToProject,
+  rowToTask,
+  taskToRow,
+} from './mappers'
 
 const project: Project = {
   id: 'p1',
@@ -83,5 +90,38 @@ describe('task mapping', () => {
 
   it('keeps rows whose icon is unknown to this client', () => {
     expect(rowToTask({ ...taskToRow(task), icon: 'from-the-future' })?.icon).toBe('from-the-future')
+  })
+})
+
+describe('documentation item mapping', () => {
+  const docItem: DocItem = {
+    id: 'd1',
+    projectId: 'p1',
+    type: 'command',
+    content: 'npm run dev',
+    description: 'Starts the dev server',
+    order: 1000,
+    createdAt: '2026-09-15T10:00:00.000Z',
+    updatedAt: '2026-09-15T11:00:00.000Z',
+  }
+
+  it('round-trips, storing absent optionals as null', () => {
+    const row = docItemToRow(docItem)
+    expect(row).toMatchObject({ project_id: 'p1', type: 'command', deleted_at: null })
+    expect(rowToDocItem(row)).toEqual(docItem)
+
+    const minimal = rowToDocItem({ ...row, description: null })
+    expect(minimal).not.toHaveProperty('description')
+  })
+
+  it('rejects unknown types and links that are not safe URLs', () => {
+    expect(rowToDocItem({ ...docItemToRow(docItem), type: 'secret' })).toBeNull()
+    expect(
+      rowToDocItem({ ...docItemToRow(docItem), type: 'link', content: 'javascript:alert(1)' }),
+    ).toBeNull()
+    expect(
+      rowToDocItem({ ...docItemToRow(docItem), type: 'link', content: 'https://shipyard.dev' })
+        ?.content,
+    ).toBe('https://shipyard.dev')
   })
 })

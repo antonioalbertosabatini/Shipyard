@@ -4,6 +4,11 @@ import { createId } from '@/lib/id'
 import { EntityNotFoundError, type ProjectRepository } from '../repositories'
 import { compact, isAlive, markDirty, type ShipyardDB } from './db'
 
+interface ProjectChild {
+  updatedAt: string
+  deletedAt?: string
+}
+
 export function createDexieProjectRepository(db: ShipyardDB): ProjectRepository {
   async function getAlive(id: string): Promise<Project> {
     const project = await db.projects.get(id)
@@ -17,6 +22,14 @@ export function createDexieProjectRepository(db: ShipyardDB): ProjectRepository 
     await markDirty(db, 'projects', [row])
     return row
   }
+
+  /** Tombstones the live rows of a child table, each after the version it replaces. */
+  const tombstones = <T extends ProjectChild>(rows: T[], timestamp: string): T[] =>
+    rows.filter(isAlive).map((row) => ({
+      ...row,
+      deletedAt: timestamp,
+      updatedAt: nextTimestamp(row.updatedAt),
+    }))
 
   return {
     async list() {
@@ -67,18 +80,19 @@ export function createDexieProjectRepository(db: ShipyardDB): ProjectRepository 
     },
 
     remove(id) {
-      return db.transaction('rw', db.projects, db.tasks, db.outbox, async () => {
+      return db.transaction('rw', db.projects, db.tasks, db.docItems, db.outbox, async () => {
         const current = await getAlive(id)
         const timestamp = nextTimestamp(current.updatedAt)
         await save({ ...current, deletedAt: timestamp, updatedAt: timestamp })
-        const tasks = (await db.tasks.where('projectId').equals(id).toArray()).filter(isAlive)
-        const deleted = tasks.map((task) => ({
-          ...task,
-          deletedAt: timestamp,
-          updatedAt: nextTimestamp(task.updatedAt),
-        }))
-        await db.tasks.bulkPut(deleted)
-        await markDirty(db, 'tasks', deleted)
+
+        const byProject = { projectId: id }
+        const tasks = tombstones(await db.tasks.where(byProject).toArray(), timestamp)
+        await db.tasks.bulkPut(tasks)
+        await markDirty(db, 'tasks', tasks)
+
+        const docItems = tombstones(await db.docItems.where(byProject).toArray(), timestamp)
+        await db.docItems.bulkPut(docItems)
+        await markDirty(db, 'docItems', docItems)
       })
     },
   }

@@ -29,9 +29,10 @@ Current state: an **offline-first web app** (runs with `npm run dev`). Data alwa
  - optional `effort` (t-shirt sizes): `xs | s | m | l | xl`
  - optional `icon`
  - optional `dueDate` (calendar date)
-  - `order` (position within its status column)
-  - `completedAt` (set automatically when the task enters `done`, cleared when it leaves)
-- Both carry `createdAt`, `updatedAt` (the version used for conflict resolution) and `deletedAt` (soft delete, synced as a tombstone).
+ - `order` (position within its status column)
+ - `completedAt` (set automatically when the task enters `done`, cleared when it leaves)
+- **DocItem** (documentation item, belongs to a project): `type` (`link | command | info`), `content` (the URL, the shell command or the note), optional `description` (what it is and what it does), `order` (position in the project's flat list).
+- All three carry `createdAt`, `updatedAt` (the version used for conflict resolution) and `deletedAt` (soft delete, synced as a tombstone).
 
 ### Screens and routes
 
@@ -39,8 +40,8 @@ Current state: an **offline-first web app** (runs with `npm run dev`). Data alwa
 | --- | --- | --- |
 | `/` | Dashboard | Stat tiles (active projects, open tasks, in progress, overdue), project cards with progress, upcoming deadlines (overdue + due within 7 days). Only non-archived projects count. |
 | `/projects` | Projects | Active/Archived toggle, project cards, create project. |
-| `/projects/:projectId` | Project | Header (links, actions menu, progress bar), **Board** (kanban with drag & drop) or **List** (sortable table) view, filters (text, type, priority), create/edit/delete tasks. View and filters are stored in URL search params (`view`, `q`, `type`, `priority`). |
-| `/settings` | Settings | Account & sync card (sign in / sign up, or status + manage account + sign out), theme (system/light/dark), export JSON backup, import JSON backup (merge or replace), delete all data. |
+| `/projects/:projectId` | Project | Header (links, actions menu, progress bar), **Board** (kanban with drag & drop), **List** (sortable table) or **Docs** (documentation items) view, filters (text, type, priority), create/edit/delete tasks and documentation items. View and filters are stored in URL search params (`view` = `board`\|`list`\|`docs`, `q`, `type`, `priority`). |
+| `/settings` | Settings | Account & sync card (sign in / sign up, or status + manage account + sign out), theme (system/light/dark), export JSON backup, export Obsidian vault (ZIP of linked Markdown notes), import JSON backup (merge or replace), delete all data. |
 | `/account` | Account (signed in only) | Email and member-since date, sync status (last sync, pending changes, "Sync now"), change password, link to sign out. |
 | `/login` | Sign in (guests only) | Email + password, links to sign up, forgot password and "continue without an account". Honors `?redirect=`. |
 | `/signup` | Sign up (guests only) | Email, password, confirmation. Shows "check your email" when Supabase requires email confirmation. |
@@ -61,8 +62,10 @@ Auth routes render full screen (`AuthLayout`, outside the app shell). In local-o
 - `effort` and `icon` are optional: when unset (or when the stored icon key is unknown to this build) the UI renders exactly as it did before they existed — no badge, and the project keeps its plain color dot.
 - Project icons appear on the project cards (dashboard and `/projects`), in the project header and in the sidebar, tinted with the project color. Task icons appear next to the title on the board and in the list.
 - Overdue = open task with `dueDate` before today. Done tasks are never overdue.
-- Deleting a project also deletes its tasks. Deletions ask for confirmation.
-- Import **merge** upserts by id keeping the copy with the newer `updatedAt`; **replace** soft-deletes local rows missing from the backup and writes the backup rows with a fresh `updatedAt`, so the backup also wins on synced devices. Backups are validated (Zod) and tasks must reference projects contained in the file.
+- The **Docs** tab hides the task filters and turns the header button into "New item". New items are appended at the bottom and reordered by dragging their handle. A `link` opens in a new tab, every item can be copied to the clipboard, clicking the row (or the pencil) opens the editor.
+- Deleting a project also deletes its tasks and its documentation items. Deletions ask for confirmation.
+- Import **merge** upserts by id keeping the copy with the newer `updatedAt`; **replace** soft-deletes local rows missing from the backup and writes the backup rows with a fresh `updatedAt`, so the backup also wins on synced devices. Backups are validated (Zod) and tasks and documentation items must reference projects contained in the file. Version 1 backups (before documentation items) still import.
+- **Obsidian export** is one-way: a ZIP of linked Markdown notes (`Shipyard.md` index, `Projects/` and `Archive/` folders, one note per task, `Docs.md` when the project has items). JSON remains the only restore format. Soft-deleted rows are omitted (same snapshot as the JSON backup). Re-export is a full snapshot — a title change creates a new filename, so unzipping over an old copy can leave orphans.
 - **Delete all data** soft-deletes every row, so the reset propagates to the account and every synced device.
 - The app is fully usable signed out. The **first sign-in uploads existing local data** to the account.
 - **Sign-out** uploads pending changes (offering "try again" / "sign out anyway" if that fails), then removes local data from the device. Signing in with a different account than the local data's owner wipes that data first.
@@ -92,6 +95,7 @@ Auth routes render full screen (`AuthLayout`, outside the app shell). In local-o
 | Dates | date-fns + `Intl.DateTimeFormat` | |
 | Toasts | sonner | |
 | Tests | Vitest 5 (jsdom), Testing Library, fake-indexeddb | |
+| Zip | fflate | In-memory ZIP for the Obsidian vault export (MIT). |
 | Lint / format | oxlint, Prettier (+ tailwind plugin) | No semicolons, single quotes, width 100. |
 
 Node ≥ 22 is required (React Router v8).
@@ -147,10 +151,13 @@ src/
     EntityIcon.tsx         # Renders a stored icon key; nothing when unset or unknown
     IconPicker.tsx         # Radiogroup grid of ENTITY_ICONS with a "no icon" option
   domain/                  # Pure, framework-free model
-    constants.ts           # Enums (types, statuses, priorities, efforts), colors, ORDER_STEP
-    schemas.ts             # Zod schemas + inferred types (Project, Task, *Input)
-    task.ts                # completedAtFor, placeAt, applyMove, isOverdue, sortByOrder
+    constants.ts           # Enums (task types/statuses/priorities/efforts, doc item types), colors, ORDER_STEP
+    schemas.ts             # Zod schemas + inferred types (Project, Task, DocItem, *Input)
+    order.ts               # Fractional ordering shared by columns and flat lists:
+                           # sortByOrder, placeAt, positionIn, applyReorder
+    task.ts                # completedAtFor, applyMove, isOverdue
     backup.ts              # Backup schema/version, buildBackup, parseBackup
+    obsidianExport.ts      # One-way Obsidian vault: slugs, YAML notes, wikilinks
     sync.ts                # Last-write-wins rules: isNewer, nextTimestamp, latestTimestamp, normalizeTimestamp
   data/
     repositories.ts        # Storage-agnostic interfaces + EntityNotFoundError
@@ -158,7 +165,8 @@ src/
     context.ts             # RepositoryContext + useRepositories()
     RepositoryProvider.tsx
     queryKeys.ts           # TanStack Query keys
-    dexie/                 # IndexedDB implementation (db + outbox/meta, projectRepo, taskRepo, backupRepo)
+    dexie/                 # IndexedDB implementation (db + outbox/meta, projectRepo, taskRepo,
+                           # docItemRepo, backupRepo)
     sync/
       types.ts             # SyncController / SyncState (what the UI sees)
       SyncEngine.ts        # Push outbox → pull by server cursor, realtime, retries
@@ -176,10 +184,12 @@ src/
                            # ProjectGlyph (icon tinted with the project color, or the color dot)
     tasks/                 # hooks, KanbanBoard, TaskCard, TaskList, TaskFormDialog, TaskFiltersBar,
                            # TaskBadges, taskStyles, filters.ts, boardUtils.ts, useProjectView
+    docs/                  # hooks, DocList (dnd), DocItemCard, DocItemFormDialog, docStyles
     settings/              # hooks, SettingsPage
   hooks/                   # use-media-query (useIsDesktop), use-theme
   i18n/                    # index.ts, i18next.d.ts (typed keys), locales/en.json
-  lib/                     # id.ts (UUID), dates.ts, download.ts, supabase.ts (client, authRedirectUrl), utils.ts (cn)
+  lib/                     # id.ts (UUID), dates.ts, download.ts (string or Blob), zip.ts (fflate),
+                           # supabase.ts (client, authRedirectUrl), utils.ts (cn)
   test/setup.ts            # fake-indexeddb, jest-dom matchers, Testing Library cleanup
 supabase/
   migrations/              # SQL schema: tables, sync trigger, RLS policies, realtime publication
@@ -213,22 +223,25 @@ UI components ──> feature hooks (TanStack Query) ──> Repositories interf
 - **Every new version of a row gets `updatedAt = nextTimestamp(previous.updatedAt)`** (or `nextTimestamp()` for new rows): the current time, but always at least 1 ms after the version it replaces.
 - **Soft delete**: `remove()` and `backup.clearAll()` set `deletedAt`; every read filters with `isAlive`. The only hard delete is `SyncController.clearLocalData()` (sign-out / owner change).
 - Optional fields are **absent** in storage, never `undefined`: rows pass through `compact()` before being written.
-- Update methods take the **full input** (`ProjectInput` / `TaskInput`), not partial patches, so clearing an optional field is unambiguous. They destructure the input field by field, so **a new field must be added there too**, otherwise it can be set but never cleared.
+- Update methods take the **full input** (`ProjectInput` / `TaskInput` / `DocItemInput`), not partial patches, so clearing an optional field is unambiguous. They destructure the input field by field, so **a new field must be added there too**, otherwise it can be set but never cleared.
 - `icon` is validated as a **free string** (`iconNameSchema`), not as an enum: a key added to `ENTITY_ICONS` in a newer build must not make older clients reject the whole synced row. Unknown keys simply render nothing.
+- A `link` doc item is validated with `webUrlSchema` (also on pulled rows and imported backups), because its `content` becomes an `href`. `command` and `info` accept any text.
 - Repository methods that write run inside a Dexie transaction **that includes `db.outbox`**, and call `markDirty(db, table, rows)` for every written row. A write path that skips `markDirty` is never uploaded.
-- Dexie schema lives in `data/dexie/db.ts` (version 2: `outbox`, `meta`). Schema changes require a new `this.version(n)` with an upgrade function — never edit an existing version.
+- Dexie schema lives in `data/dexie/db.ts` (version 3: v2 added `outbox` and `meta`, v3 added `docItems`). Schema changes require a new `this.version(n)` — never edit an existing version. A brand-new table needs no upgrade function: it starts empty, so there is nothing to queue in the outbox.
 
 ### Cloud sync
 
 Strategy: **row-level last write wins on `updated_at`, with a server-assigned pull cursor.**
 
-- **Server** (`supabase/migrations/*_initial_schema.sql`): `projects` and `tasks` with snake_case columns, primary key `(user_id, id)`, `user_id default auth.uid()`, RLS `user_id = auth.uid()`. Trigger `shipyard_sync_guard` runs before insert/update: it **skips updates whose `updated_at` is not newer** than the stored row (returns `NULL`), keeps `user_id` immutable and sets `synced_at = clock_timestamp()`. Both tables are in the `supabase_realtime` publication.
+- **Server** (`supabase/migrations/`): `projects`, `tasks` and `doc_items` with snake_case columns, primary key `(user_id, id)`, `user_id default auth.uid()`, RLS `user_id = auth.uid()`. Trigger `shipyard_sync_guard` runs before insert/update: it **skips updates whose `updated_at` is not newer** than the stored row (returns `NULL`), keeps `user_id` immutable and sets `synced_at = clock_timestamp()`. All tables are in the `supabase_realtime` publication.
+- **Table names**: the local Dexie tables (`SyncTable`) are camelCase, Postgres is snake_case. `REMOTE_TABLES` in `supabaseRemote.ts` maps them (`docItems` → `doc_items`) and drives the realtime subscriptions.
 - **Outbox** (`db.outbox`, key `[table+id]`): `{ table, id, updatedAt }` of rows changed locally. The v1→v2 upgrade queues all pre-existing rows, so they upload on first sign-in.
-- **Push** (projects before tasks, because of the FK; batches of `PUSH_BATCH_SIZE`): upsert the current rows, then delete outbox entries whose `updatedAt` still matches what was pushed (entries re-queued during the upload stay).
-- **Pull** (projects then tasks): rows with `synced_at >= cursor − PULL_OVERLAP_MS` (60 s overlap for late commits), keyset-paginated on `synced_at`. Each row is validated (`rowToProject`/`rowToTask`; invalid rows are skipped with a warning) and applied only if `isNewer(remote, local)`; applied rows drop their outbox entries. The cursor (`meta` key `pullCursor:<table>`) is the raw `synced_at` of the latest row.
+- **Push** (projects first, then tasks and doc items, because of the FK; batches of `PUSH_BATCH_SIZE`): upsert the current rows, then delete outbox entries whose `updatedAt` still matches what was pushed (entries re-queued during the upload stay).
+- **Pull** (same order): rows with `synced_at >= cursor − PULL_OVERLAP_MS` (60 s overlap for late commits), keyset-paginated on `synced_at`. Each row is validated (`rowTo*`; invalid rows are skipped with a warning) and applied only if `isNewer(remote, local)`; applied rows drop their outbox entries. The cursor (`meta` key `pullCursor:<table>`) is the raw `synced_at` of the latest row.
+- **Generic helpers and Dexie types**: `pushTable`/`pullTable`/`apply` take the table name plus small closures (`(ids) => db.x.bulkGet(ids)`, `(rows) => db.x.bulkPut(rows)`). Passing a `Table` into generic code drags in Dexie's key/insert type parameters and stops inferring; closures keep it concrete. `backupRepo` does the same with its `Rows<T>` accessors.
 - **Why `synced_at`**: client clocks can be wrong; a server cursor guarantees no change is missed. `nextTimestamp` guarantees an edit still beats the version it was based on when another device's clock runs ahead.
 - **Triggers**: `start(userId)`, `MutationCache.onSuccess` → `requestSync()` (1 s debounce), Realtime `postgres_changes` (and on re-subscribe), `online`, tab becoming visible, 60 s interval. Failures retry with exponential backoff (2 s → 60 s). `syncNow()` is single-flight; a request during a run schedules one more pass.
-- **Ownership**: `meta.ownerId` stores the user whose data is local. `start()` wipes local data owned by someone else. `clearLocalData()` stops the engine and clears projects, tasks, outbox and meta.
+- **Ownership**: `meta.ownerId` stores the user whose data is local. `start()` wipes local data owned by someone else. `clearLocalData()` stops the engine and clears projects, tasks, doc items, outbox and meta.
 - **Known limit**: concurrent edits to different fields of the same row are not merged; the newer row wins entirely.
 
 ### Auth
@@ -240,16 +253,17 @@ Strategy: **row-level last write wins on `updated_at`, with a server-assigned pu
 - Guards are layout routes: `RequireAuth` (app shell) and `GuestOnly` (auth layout). `safeRedirect` only allows same-app paths.
 - The reset page does not depend on the `PASSWORD_RECOVERY` event (it can fire before React subscribes): it shows the form whenever a session exists after `isReady`.
 
-### Kanban ordering
+### Manual ordering (kanban columns and documentation items)
 
-- `order` is a float. New/moved items get the midpoint between neighbours (`placeAt`); when the gap gets smaller than `1e-6`, the whole column is renumbered with `ORDER_STEP` (1000) spacing.
-- `applyMove(tasks, taskId, status, index, now)` is the single source of truth for moves. `index` is the position in the target column **counted without the moved task**. It returns a new array where only changed tasks are new objects; `taskRepo.move` persists exactly those (with `now = nextTimestamp(latestTimestamp(column))`).
+- `order` is a float. New/moved items get the midpoint between neighbours (`placeAt`); when the gap gets smaller than `1e-6`, the whole list is renumbered with `ORDER_STEP` (1000) spacing. `positionIn` (in `domain/order.ts`) implements both branches and is shared by tasks and documentation items.
+- `applyMove(tasks, taskId, status, index, now)` is the single source of truth for task moves, `applyReorder(items, id, index, now)` for the flat documentation list. `index` is the position **counted without the moved row**. Both return a new array where only changed rows are new objects; `taskRepo.move` / `docItemRepo.move` persist exactly those (with `now = nextTimestamp(latestTimestamp(...))`).
 - The board (`KanbanBoard.tsx`) keeps a local preview of columns only while dragging (`drag` state + `dragRef`); otherwise columns are derived from props. On drop, `boardUtils.resolveMove` converts the visual position (possibly filtered) into `{ status, index }` for the full column, returning `null` for no-op drops.
-- `useMoveTask` updates the query cache **synchronously** with `applyMove` before calling the mutation (avoids a flicker back to the old position), then invalidates on settle.
+- `DocList` needs no preview state: a single vertical `SortableContext` displaces the rows visually, and on drop the index of the row being passed is already the target position.
+- `useMoveTask` / `useMoveDocItem` update the query cache **synchronously** before calling the mutation (avoids a flicker back to the old position), then invalidate on settle.
 
 ### TanStack Query conventions
 
-- Keys in `data/queryKeys.ts`. Invalidate broad prefixes: `queryKeys.projects.all` / `queryKeys.tasks.all`. Import, clear and remote sync changes invalidate everything; sign-out clears the cache.
+- Keys in `data/queryKeys.ts`. Invalidate broad prefixes: `queryKeys.projects.all` / `queryKeys.tasks.all` / `queryKeys.docItems.all` (deleting a project invalidates all three). Import, clear and remote sync changes invalidate everything; sign-out clears the cache.
 - Mutation errors are handled globally in `providers.tsx` (`MutationCache.onError` → console + generic toast). Components only show success toasts. `MutationCache.onSuccess` schedules a sync.
 - `networkMode: 'always'` is intentional: queries and mutations hit IndexedDB, which works offline even with sync enabled.
 - When the component may unmount before the mutation finishes (deleting, closing dialogs, navigating), use `mutateAsync(...).then(...).catch(() => {})` instead of per-call `onSuccess`, which does not fire after unmount.
@@ -285,6 +299,7 @@ Strategy: **row-level last write wins on `updated_at`, with a server-assigned pu
 - Form schemas are built with `makeSchema(t)` so validation messages are translated. Form values use `''` for empty optional fields; a `toInput()` function converts them to domain input (`undefined`).
 - Radix `Select` cannot hold an empty value, so an optional enum needs a sentinel option mapped back to `undefined` in `toInput()` (`NO_EFFORT` in `TaskFormDialog`).
 - Pickers that are not inputs (colors, icons) use `role="radiogroup"` + `role="radio"` buttons driven by a `Controller`.
+- To react to another field (the doc item type drives the content label, placeholder and validation) use `useWatch({ control, name })`, not `watch()`: oxlint flags `watch` as incompatible with the React Compiler.
 - **Never clear a field with `field.onChange(undefined)`**: react-hook-form reads values with `get(values, name, defaultValue)`, so `undefined` silently restores the default and the field looks unclearable. Use `''` (covered by `components/IconPicker.test.tsx`).
 - URLs are validated with `webUrlSchema` (http/https only) to prevent unsafe `href`s, including on imported backups and pulled rows.
 - Auth pages are not dialogs: `AuthCard` + `AuthField` (spread `register(name)` into it) + `AuthAlert` for form-level errors. Shared field schemas are in `features/auth/schemas.ts` (`emailSchema`, `passwordSchema` 8–72 chars, `passwordsMatch` + `passwordMismatch` refinement).
@@ -309,7 +324,7 @@ Strategy: **row-level last write wins on `updated_at`, with a server-assigned pu
 - Repository tests create an isolated DB per test: `new ShipyardDB(\`test-${createId()}\`)`.
 - Sync tests (`data/sync/SyncEngine.test.ts`) use an in-memory `FakeRemote` that mirrors the SQL trigger; simulate devices with separate DBs sharing one remote. Use long engine timers and drive syncs with `start`/`syncNow`/`flush` (no fake timers: they stall fake-indexeddb).
 - Component tests render pages inside `<AuthContext value={fakeAuth}>` + `MemoryRouter` (see `features/auth/authPages.test.tsx`).
-- Cover every new pure function and repository method. Existing suites: `domain/task.test.ts`, `domain/backup.test.ts`, `domain/sync.test.ts`, `data/dexie/repositories.test.ts`, `data/sync/mappers.test.ts`, `data/sync/SyncEngine.test.ts`, `features/dashboard/stats.test.ts`, `features/tasks/boardUtils.test.ts`, `features/tasks/filters.test.ts`, `components/IconPicker.test.tsx`, `features/auth/auth.test.ts`, `features/auth/authPages.test.tsx`, `features/sync/syncStatus.test.ts`.
+- Cover every new pure function and repository method. Existing suites: `domain/order.test.ts`, `domain/task.test.ts`, `domain/backup.test.ts`, `domain/obsidianExport.test.ts`, `domain/sync.test.ts`, `data/dexie/repositories.test.ts`, `data/sync/mappers.test.ts`, `data/sync/SyncEngine.test.ts`, `features/dashboard/stats.test.ts`, `features/tasks/boardUtils.test.ts`, `features/tasks/filters.test.ts`, `components/IconPicker.test.tsx`, `features/auth/auth.test.ts`, `features/auth/authPages.test.tsx`, `features/sync/syncStatus.test.ts`, `lib/zip.test.ts`.
 - Manual UI check: `npm run dev`. In dev, sample data can be seeded from the browser console with `const { createDexieRepositories } = await import('/src/data/index.ts')`, then reload the page.
 - Manual sync check: two browser profiles signed in to the same account; edits appear on the other within seconds (Realtime). Toggle DevTools offline to test the outbox.
 
@@ -320,6 +335,7 @@ Strategy: **row-level last write wins on `updated_at`, with a server-assigned pu
 - **Dexie renames errors whose `name` matches its own** (e.g. `NotFoundError`) and wraps them in `DexieError`. That is why the domain error is `EntityNotFoundError`. Avoid DOMException-like names for custom errors.
 - **shadcn CLI** (`npx shadcn@latest add <component>`): generated files import `cn` from the `cn` package — this is legitimate, keep it. Files in `src/components/ui/` are excluded from Prettier and from the `only-export-components` lint rule. **`ui/sonner.tsx` was modified** to use our `useTheme` instead of `next-themes`; re-apply that change if the component is regenerated, and do not reinstall `next-themes`.
 - Radix `DropdownMenu` that opens a dialog from a menu item uses `modal={false}` to avoid focus/pointer-events lock issues.
+- A Zod schema carrying a refinement cannot be `.extend()`ed: `docItemInputSchema` and `docItemSchema` are built from one shared field map, each applying the same `refine` (the link URL check).
 - Avoid very recent JS APIs not available in older iOS WebViews (e.g. `Map.groupBy`), since the app will run in Capacitor.
 - `navigator.storage.persist()` is requested at startup to reduce IndexedDB eviction.
 - Radix Select keyboard interaction needs a short delay after opening in automated browser tests; screenshots may lag behind DOM state during dialog animations — verify with DOM queries.
@@ -337,7 +353,7 @@ Strategy: **row-level last write wins on `updated_at`, with a server-assigned pu
 - **Electron (desktop)**: load `dist/` with `VITE_ROUTER_MODE=hash`; replace `lib/download.ts` with a native save dialog; consider CSP (the theme inline script in `index.html` may need a hash/nonce; allow `connect-src` to the Supabase URL, `wss:` for Realtime). Auth email links need `VITE_AUTH_REDIRECT_URL` pointing to a handled URL/deep link.
 - **Capacitor (Android/iOS)**: `webDir: dist`, hash router, safe-area insets are already handled (`env(safe-area-inset-*)`, `viewport-fit=cover`). iOS may evict WebView storage (sync restores data after sign-in). Auth sessions use `localStorage`; consider Capacitor Preferences storage and deep links for email flows.
 - **Sync follow-ups**: tombstone garbage collection, field-level merge if row-level LWW proves too coarse, account deletion, a "delete from this device only" option.
-- **Performance**: route-level code splitting (bundle is ~1010 kB).
+- **Performance**: route-level code splitting (bundle is ~1260 kB).
 - **i18n**: add Italian.
 
 ---
@@ -352,6 +368,8 @@ Strategy: **row-level last write wins on `updated_at`, with a server-assigned pu
 
 Add a line for every change that updates this guide (newest first).
 
+- 2026-09-16 — Obsidian vault export (ZIP of linked Markdown notes) next to the JSON backup; `fflate`, `download.ts` accepts Blob.
+- 2026-09-16 — Documentation tab per project (`?view=docs`): new `DocItem` entity (link / command / info, ordered, soft-deleted, synced), Dexie v3 + `doc_items` migration, backup version 2 (still importing version 1), `domain/order.ts` extracted from `domain/task.ts` with `applyReorder`.
 - 2026-09-16 — Optional task `effort` (t-shirt sizes XS–XL, sortable in the list) and optional `icon` on projects and tasks (curated lucide set, `IconPicker`, `EntityIcon`, `ProjectGlyph`), with the matching Supabase migration.
 - 2026-09-15 — Supabase cloud sync (outbox, LWW with server cursor, realtime), email/password auth pages (login, signup, forgot/reset password, account with password change, logout), environment variables, SQL migration.
 - 2026-09-15 — Added PolyForm Strict License 1.0.0 and the license section.

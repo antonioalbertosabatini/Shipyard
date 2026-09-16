@@ -4,7 +4,14 @@
  */
 import type { Backup, ImportMode, ImportResult } from '@/domain/backup'
 import type { TaskStatus } from '@/domain/constants'
-import type { Project, ProjectInput, Task, TaskInput } from '@/domain/schemas'
+import type {
+  DocItem,
+  DocItemInput,
+  Project,
+  ProjectInput,
+  Task,
+  TaskInput,
+} from '@/domain/schemas'
 
 export interface ProjectRepository {
   list(): Promise<Project[]>
@@ -12,7 +19,7 @@ export interface ProjectRepository {
   create(input: ProjectInput): Promise<Project>
   update(id: string, input: ProjectInput): Promise<Project>
   setArchived(id: string, archived: boolean): Promise<Project>
-  /** Removes the project together with all of its tasks. */
+  /** Removes the project together with all of its tasks and documentation items. */
   remove(id: string): Promise<void>
 }
 
@@ -29,17 +36,30 @@ export interface TaskRepository {
   remove(id: string): Promise<void>
 }
 
+/** Documentation items of a project: a flat, manually ordered list of links, commands and notes. */
+export interface DocItemRepository {
+  listByProject(projectId: string): Promise<DocItem[]>
+  get(id: string): Promise<DocItem | undefined>
+  /** Creates the item at the bottom of the project's list. */
+  create(projectId: string, input: DocItemInput): Promise<DocItem>
+  update(id: string, input: DocItemInput): Promise<DocItem>
+  /** Moves the item to position `index`, counted without the moved item. */
+  move(id: string, index: number): Promise<DocItem>
+  remove(id: string): Promise<void>
+}
+
 export interface BackupRepository {
   exportAll(): Promise<Backup>
   /** `replace` stamps imported rows as the newest version so they win on synced devices too. */
   importAll(backup: Backup, mode: ImportMode): Promise<ImportResult>
-  /** Soft-deletes every project and task, so the reset propagates through sync. */
+  /** Soft-deletes every row, so the reset propagates through sync. */
   clearAll(): Promise<void>
 }
 
 export interface Repositories {
   projects: ProjectRepository
   tasks: TaskRepository
+  docItems: DocItemRepository
   backup: BackupRepository
 }
 

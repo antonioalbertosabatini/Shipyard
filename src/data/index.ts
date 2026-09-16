@@ -1,6 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { createDexieBackupRepository } from './dexie/backupRepo'
 import { ShipyardDB } from './dexie/db'
+import { createDexieDocItemRepository } from './dexie/docItemRepo'
 import { createDexieProjectRepository } from './dexie/projectRepo'
 import { createDexieTaskRepository } from './dexie/taskRepo'
 import type { Repositories } from './repositories'
@@ -17,6 +18,7 @@ export function createDexieRepositories(db = new ShipyardDB()): Repositories {
   return {
     projects: createDexieProjectRepository(db),
     tasks: createDexieTaskRepository(db),
+    docItems: createDexieDocItemRepository(db),
     backup: createDexieBackupRepository(db),
   }
 }

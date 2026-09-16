@@ -1,20 +1,22 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import type { TaskInput } from '@/domain/schemas'
+import type { DocItemInput, TaskInput } from '@/domain/schemas'
 import { toMillis } from '@/domain/sync'
 import { createId } from '@/lib/id'
 import { createDexieRepositories } from '..'
 import { ShipyardDB, type SyncTable } from '../dexie/db'
-import type { ProjectRow, Pulled, TaskRow } from './mappers'
+import type { DocItemRow, ProjectRow, Pulled, TaskRow } from './mappers'
 import type { RemoteStore, RowsByTable } from './remote'
 import { SyncEngine } from './SyncEngine'
 
-type AnyRow = Pulled<ProjectRow | TaskRow>
+type Row = ProjectRow | TaskRow | DocItemRow
+type AnyRow = Pulled<Row>
 
 /** In-memory server that mirrors the `shipyard_sync_guard` trigger. */
 class FakeRemote implements RemoteStore {
   readonly tables: Record<SyncTable, Map<string, AnyRow>> = {
     projects: new Map(),
     tasks: new Map(),
+    docItems: new Map(),
   }
   failNextPush = false
   beforePush: (() => Promise<void>) | undefined
@@ -45,7 +47,7 @@ class FakeRemote implements RemoteStore {
     return () => {}
   }
 
-  seed(table: SyncTable, row: ProjectRow | TaskRow) {
+  seed(table: SyncTable, row: Row) {
     this.clock += 1
     this.tables[table].set(row.id, { ...row, synced_at: new Date(this.clock).toISOString() })
   }
@@ -54,6 +56,7 @@ class FakeRemote implements RemoteStore {
 const USER = 'user-1'
 const projectInput = { name: 'Portfolio', color: '#6366f1' }
 const taskInput: TaskInput = { title: 'Task', type: 'feature', status: 'todo', priority: 'medium' }
+const docItemInput: DocItemInput = { type: 'command', content: 'npm run dev' }
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
 
 const engines: SyncEngine[] = []
@@ -95,6 +98,7 @@ describe('SyncEngine', () => {
     const a = device(remote)
     const project = await a.repos.projects.create(projectInput)
     await a.repos.tasks.create(project.id, taskInput)
+    await a.repos.docItems.create(project.id, docItemInput)
     await a.engine.start(USER)
 
     const b = device(remote)
@@ -104,6 +108,9 @@ describe('SyncEngine', () => {
 
     expect(await b.repos.projects.list()).toEqual(await a.repos.projects.list())
     expect(await b.repos.tasks.listAll()).toEqual(await a.repos.tasks.listAll())
+    expect(await b.repos.docItems.listByProject(project.id)).toEqual(
+      await a.repos.docItems.listByProject(project.id),
+    )
     expect(onChange).toHaveBeenCalled()
   })
 
@@ -136,6 +143,7 @@ describe('SyncEngine', () => {
     const b = device(remote)
     const project = await a.repos.projects.create(projectInput)
     await a.repos.tasks.create(project.id, taskInput)
+    await a.repos.docItems.create(project.id, docItemInput)
     await a.engine.start(USER)
     await b.engine.start(USER)
 
@@ -145,6 +153,7 @@ describe('SyncEngine', () => {
 
     expect(await b.repos.projects.list()).toEqual([])
     expect(await b.repos.tasks.listAll()).toEqual([])
+    expect(await b.repos.docItems.listByProject(project.id)).toEqual([])
   })
 
   it('keeps changes made while an upload is in flight', async () => {
@@ -213,12 +222,14 @@ describe('SyncEngine', () => {
 
   it('clears every local row on sign-out', async () => {
     const a = device(new FakeRemote())
-    await a.repos.projects.create(projectInput)
+    const project = await a.repos.projects.create(projectInput)
+    await a.repos.docItems.create(project.id, docItemInput)
     await a.engine.start(USER)
 
     await a.engine.clearLocalData()
 
     expect(await a.db.projects.count()).toBe(0)
+    expect(await a.db.docItems.count()).toBe(0)
     expect(await a.db.outbox.count()).toBe(0)
     expect(await a.db.meta.count()).toBe(0)
   })

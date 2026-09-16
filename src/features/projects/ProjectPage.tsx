@@ -1,4 +1,14 @@
-import { ArrowLeft, Columns3, GitBranch, Globe, List, ListTodo, Plus, SearchX } from 'lucide-react'
+import {
+  ArrowLeft,
+  BookText,
+  Columns3,
+  GitBranch,
+  Globe,
+  List,
+  ListTodo,
+  Plus,
+  SearchX,
+} from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link, useNavigate, useParams } from 'react-router'
@@ -17,8 +27,10 @@ import { Progress } from '@/components/ui/progress'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import type { TaskStatus } from '@/domain/constants'
-import type { Task } from '@/domain/schemas'
+import type { DocItem, Task } from '@/domain/schemas'
 import { computeProjectStats } from '@/features/dashboard/stats'
+import { DocItemFormDialog } from '@/features/docs/DocItemFormDialog'
+import { DocList } from '@/features/docs/DocList'
 import { filterTasks, hasActiveFilters } from '@/features/tasks/filters'
 import { useProjectTasks } from '@/features/tasks/hooks'
 import { KanbanBoard } from '@/features/tasks/KanbanBoard'
@@ -45,13 +57,16 @@ export function ProjectPage() {
   const tasksQuery = useProjectTasks(projectId)
   const { view, filters, update } = useProjectView()
   const [taskDialog, setTaskDialog] = useState<TaskDialogState>({ open: false })
+  const [docDialog, setDocDialog] = useState<{ open: boolean; item?: DocItem }>({ open: false })
 
   const allTasks = useMemo(() => tasksQuery.data ?? [], [tasksQuery.data])
   const visibleTasks = useMemo(() => filterTasks(allTasks, filters), [allTasks, filters])
   const stats = useMemo(() => computeProjectStats(allTasks, todayISO()), [allTasks])
+  const isDocs = view === 'docs'
 
   const openTask = (task: Task) => setTaskDialog({ open: true, task })
   const createTask = (status: TaskStatus = 'todo') => setTaskDialog({ open: true, status })
+  const createDocItem = () => setDocDialog({ open: true })
 
   if (projectQuery.isPending) {
     return (
@@ -121,10 +136,17 @@ export function ProjectPage() {
                   </a>
                 </Button>
               )}
-              <Button onClick={() => createTask()}>
-                <Plus data-icon="inline-start" />
-                {t('task.new')}
-              </Button>
+              {isDocs ? (
+                <Button onClick={createDocItem}>
+                  <Plus data-icon="inline-start" />
+                  {t('doc.new')}
+                </Button>
+              ) : (
+                <Button onClick={() => createTask()}>
+                  <Plus data-icon="inline-start" />
+                  {t('task.new')}
+                </Button>
+              )}
               <ProjectActionsMenu project={project} onDelete={() => navigate('/projects')} />
             </>
           }
@@ -145,21 +167,31 @@ export function ProjectPage() {
 
       <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
         <Tabs value={view} onValueChange={(value) => update({ view: value as typeof view })}>
-          <TabsList aria-label={t('task.view.label')}>
+          <TabsList aria-label={t('project.view.label')}>
             <TabsTrigger value="board">
               <Columns3 />
-              {t('task.view.board')}
+              {t('project.view.board')}
             </TabsTrigger>
             <TabsTrigger value="list">
               <List />
-              {t('task.view.list')}
+              {t('project.view.list')}
+            </TabsTrigger>
+            <TabsTrigger value="docs">
+              <BookText />
+              {t('project.view.docs')}
             </TabsTrigger>
           </TabsList>
         </Tabs>
-        <TaskFiltersBar filters={filters} onChange={update} />
+        {!isDocs && <TaskFiltersBar filters={filters} onChange={update} />}
       </div>
 
-      {tasksQuery.isPending ? (
+      {isDocs ? (
+        <DocList
+          projectId={project.id}
+          onOpenItem={(item) => setDocDialog({ open: true, item })}
+          onCreate={createDocItem}
+        />
+      ) : tasksQuery.isPending ? (
         <Skeleton className="h-96" />
       ) : allTasks.length === 0 ? (
         <Empty className="border py-12">
@@ -205,6 +237,13 @@ export function ProjectPage() {
         onOpenChange={(open) => setTaskDialog((state) => ({ ...state, open }))}
         task={taskDialog.task}
         defaultStatus={taskDialog.status}
+      />
+
+      <DocItemFormDialog
+        projectId={project.id}
+        open={docDialog.open}
+        onOpenChange={(open) => setDocDialog((state) => ({ ...state, open }))}
+        item={docDialog.item}
       />
     </div>
   )

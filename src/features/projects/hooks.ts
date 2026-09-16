@@ -53,6 +53,7 @@ export function useDeleteProject() {
       Promise.all([
         queryClient.invalidateQueries({ queryKey: queryKeys.projects.all }),
         queryClient.invalidateQueries({ queryKey: queryKeys.tasks.all }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.docItems.all }),
       ]),
   })
 }

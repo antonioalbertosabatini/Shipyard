@@ -173,6 +173,12 @@
     "progress": "{{done}} of {{total}} tasks done",
     "noTasks": "No tasks yet",
     "listDescription": "All your projects in one place.",
+    "view": {
+      "label": "View",
+      "board": "Board",
+      "list": "List",
+      "docs": "Docs"
+    },
     "filter": {
       "label": "Show projects",
       "active": "Active",
@@ -239,11 +245,6 @@
     "emptyColumn": "Drop tasks here",
     "due": "Due {{date}}",
     "overdue": "Overdue since {{date}}",
-    "view": {
-      "label": "View",
-      "board": "Board",
-      "list": "List"
-    },
     "filters": {
       "search": "Search tasks…",
       "allTypes": "All types",
@@ -265,6 +266,45 @@
     "empty": {
       "title": "No tasks yet",
       "description": "Break the project down into features, bugfixes and chores."
+    }
+  },
+  "doc": {
+    "new": "New item",
+    "createTitle": "Add documentation item",
+    "editTitle": "Edit documentation item",
+    "formDescription": "Keep the links, commands and notes you need for this project.",
+    "fields": {
+      "type": "Type",
+      "description": "What it is",
+      "descriptionPlaceholder": "What this is for, when to use it…"
+    },
+    "type": {
+      "link": "Link",
+      "command": "Command",
+      "info": "Info"
+    },
+    "content": {
+      "link": "URL",
+      "command": "Command",
+      "info": "Information"
+    },
+    "contentPlaceholder": {
+      "link": "https://dashboard.example.com",
+      "command": "npm run deploy",
+      "info": "Requires Node 22"
+    },
+    "created": "Item added",
+    "updated": "Item updated",
+    "deleted": "Item deleted",
+    "deleteTitle": "Delete this item?",
+    "deleteDescription": "“{{content}}” will be removed. This cannot be undone.",
+    "copy": "Copy",
+    "copied": "Copied",
+    "open": "Open in a new tab",
+    "reorder": "Reorder item",
+    "empty": {
+      "title": "No documentation yet",
+      "description": "Collect the links, commands and notes you keep looking up for this project."
     }
   },
   "dashboard": {
@@ -303,18 +343,21 @@
       "description": "Your data is stored locally in this browser (IndexedDB). Export regularly to keep a backup.",
       "descriptionSynced": "Your data is stored on this device and synced with your account. You can also export a JSON backup.",
       "export": "Export JSON",
-      "exportDescription": "Download all projects and tasks as a JSON file.",
+      "exportDescription": "Download all projects, tasks and documentation as a JSON backup.",
       "exported": "Backup exported",
+      "exportObsidian": "Export Obsidian vault",
+      "exportObsidianDescription": "Download linked Markdown notes you can open as an Obsidian vault (ZIP). This is not a backup.",
+      "exportedObsidian": "Obsidian vault exported",
       "import": "Import JSON",
       "importDescription": "Restore projects and tasks from a backup file.",
       "importTitle": "Import backup",
-      "importSummary": "The file contains {{projects}} projects and {{tasks}} tasks, exported on {{date}}.",
+      "importSummary": "The file contains {{projects}} projects, {{tasks}} tasks and {{docItems}} documentation items, exported on {{date}}.",
       "merge": "Merge",
       "mergeDescription": "Add new items and update the ones that are older than the backup.",
       "replace": "Replace",
       "replaceDescription": "Delete all current data and use the backup instead.",
       "importConfirm": "Import",
-      "imported": "Imported {{projects}} projects and {{tasks}} tasks",
+      "imported": "Imported {{projects}} projects, {{tasks}} tasks and {{docItems}} documentation items",
       "invalidFile": "Could not import the file"
     },
     "danger": {

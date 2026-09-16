@@ -1,4 +1,5 @@
 import {
+  BookOpen,
   Download,
   LogIn,
   LogOut,
@@ -21,6 +22,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Separator } from '@/components/ui/separator'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { parseBackup, type Backup, type ImportMode } from '@/domain/backup'
+import { buildObsidianVault } from '@/domain/obsidianExport'
 import { useAuth } from '@/features/auth/context'
 import { SyncStatusIcon } from '@/features/sync/SyncStatusIcon'
 import { useSyncState } from '@/features/sync/context'
@@ -29,6 +31,7 @@ import { formatDate, todayISO } from '@/lib/dates'
 import { useTheme } from '@/hooks/use-theme'
 import { downloadFile } from '@/lib/download'
 import { cn } from '@/lib/utils'
+import { zipUtf8Files } from '@/lib/zip'
 import { useClearData, useExportBackup, useImportBackup } from './hooks'
 
 const ignore = () => {}
@@ -137,6 +140,25 @@ export function SettingsPage() {
       })
       .catch(ignore)
 
+  const handleExportObsidian = () =>
+    exportBackup
+      .mutateAsync()
+      .then((backup) => {
+        const files = buildObsidianVault(
+          backup.projects,
+          backup.tasks,
+          backup.docItems,
+          new Date(backup.exportedAt),
+        )
+        const root = `shipyard-obsidian-${todayISO()}`
+        downloadFile(
+          `${root}.zip`,
+          zipUtf8Files(files.map((file) => ({ ...file, path: `${root}/${file.path}` }))),
+        )
+        toast.success(t('settings.data.exportedObsidian'))
+      })
+      .catch(ignore)
+
   const handleFile = async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
     event.target.value = ''
@@ -155,9 +177,7 @@ export function SettingsPage() {
     importBackup
       .mutateAsync({ data: pendingImport, mode: importMode })
       .then((result) => {
-        toast.success(
-          t('settings.data.imported', { projects: result.projects, tasks: result.tasks }),
-        )
+        toast.success(t('settings.data.imported', { ...result }))
         setPendingImport(null)
       })
       .catch(ignore)
@@ -225,6 +245,21 @@ export function SettingsPage() {
           />
           <Separator />
           <SettingRow
+            title={t('settings.data.exportObsidian')}
+            description={t('settings.data.exportObsidianDescription')}
+            action={
+              <Button
+                variant="outline"
+                onClick={handleExportObsidian}
+                disabled={exportBackup.isPending}
+              >
+                <BookOpen data-icon="inline-start" />
+                {t('settings.data.exportObsidian')}
+              </Button>
+            }
+          />
+          <Separator />
+          <SettingRow
             title={t('settings.data.import')}
             description={t('settings.data.importDescription')}
             action={
@@ -275,6 +310,7 @@ export function SettingsPage() {
           t('settings.data.importSummary', {
             projects: pendingImport.projects.length,
             tasks: pendingImport.tasks.length,
+            docItems: pendingImport.docItems.length,
             date: formatDate(pendingImport.exportedAt, i18n.language, { dateStyle: 'medium' }),
           })
         }

@@ -1,9 +1,10 @@
 import type { SyncTable } from '../dexie/db'
-import type { ProjectRow, Pulled, TaskRow } from './mappers'
+import type { DocItemRow, ProjectRow, Pulled, TaskRow } from './mappers'
 
 export interface RowsByTable {
   projects: ProjectRow
   tasks: TaskRow
+  docItems: DocItemRow
 }
 
 /** Server side of the sync, kept abstract so the engine can be tested without Supabase. */

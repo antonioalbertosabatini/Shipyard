@@ -1,7 +1,20 @@
-import type { Project, Task } from '@/domain/schemas'
-import { PULL_OVERLAP_MS, PULL_PAGE_SIZE, PUSH_BATCH_SIZE, isNewer, toMillis } from '@/domain/sync'
+import {
+  PULL_OVERLAP_MS,
+  PULL_PAGE_SIZE,
+  PUSH_BATCH_SIZE,
+  isNewer,
+  toMillis,
+  type Versioned,
+} from '@/domain/sync'
 import type { OutboxEntry, ShipyardDB, SyncTable } from '../dexie/db'
-import { projectToRow, rowToProject, rowToTask, taskToRow } from './mappers'
+import {
+  docItemToRow,
+  projectToRow,
+  rowToDocItem,
+  rowToProject,
+  rowToTask,
+  taskToRow,
+} from './mappers'
 import type { RemoteStore, RowsByTable } from './remote'
 import type { SyncController, SyncState } from './types'
 
@@ -194,7 +207,7 @@ export class SyncEngine implements SyncController {
     this.retryTimer = setTimeout(() => void this.syncNow(), this.retryDelay)
   }
 
-  // Projects first: tasks reference them through a foreign key.
+  // Projects first: tasks and documentation items reference them through a foreign key.
   private async push(isCurrent: IsCurrent) {
     await this.pushTable(
       'projects',
@@ -203,6 +216,12 @@ export class SyncEngine implements SyncController {
       isCurrent,
     )
     await this.pushTable('tasks', (ids) => this.db.tasks.bulkGet(ids), taskToRow, isCurrent)
+    await this.pushTable(
+      'docItems',
+      (ids) => this.db.docItems.bulkGet(ids),
+      docItemToRow,
+      isCurrent,
+    )
   }
 
   private async pushTable<T extends SyncTable, L extends { id: string; updatedAt: string }>(
@@ -234,19 +253,44 @@ export class SyncEngine implements SyncController {
   }
 
   private async pull(isCurrent: IsCurrent): Promise<boolean> {
+    const { projects: p, tasks: t, docItems: d } = this.db
     const projects = await this.pullTable(
       'projects',
       rowToProject,
-      (rows) => this.applyProjects(rows),
+      (rows) =>
+        this.apply(
+          'projects',
+          (ids) => p.bulkGet(ids),
+          (won) => p.bulkPut(won),
+          rows,
+        ),
       isCurrent,
     )
     const tasks = await this.pullTable(
       'tasks',
       rowToTask,
-      (rows) => this.applyTasks(rows),
+      (rows) =>
+        this.apply(
+          'tasks',
+          (ids) => t.bulkGet(ids),
+          (won) => t.bulkPut(won),
+          rows,
+        ),
       isCurrent,
     )
-    return projects || tasks
+    const docItems = await this.pullTable(
+      'docItems',
+      rowToDocItem,
+      (rows) =>
+        this.apply(
+          'docItems',
+          (ids) => d.bulkGet(ids),
+          (won) => d.bulkPut(won),
+          rows,
+        ),
+      isCurrent,
+    )
+    return projects || tasks || docItems
   }
 
   private async pullTable<T extends SyncTable, L>(
@@ -285,31 +329,33 @@ export class SyncEngine implements SyncController {
     return changed
   }
 
-  private applyProjects(rows: Project[]): Promise<boolean> {
-    return this.db.transaction('rw', this.db.projects, this.db.outbox, async () => {
-      const existing = await this.db.projects.bulkGet(rows.map((row) => row.id))
+  /** Writes the pulled rows that win against the local copy. */
+  private apply<T extends Versioned & { id: string }>(
+    table: SyncTable,
+    load: (ids: string[]) => Promise<(T | undefined)[]>,
+    store: (rows: T[]) => Promise<unknown>,
+    rows: T[],
+  ): Promise<boolean> {
+    return this.db.transaction('rw', table, this.db.outbox, async () => {
+      const existing = await load(rows.map((row) => row.id))
       const winners = rows.filter((row, i) => isNewer(row, existing[i]))
-      await this.db.projects.bulkPut(winners)
+      await store(winners)
       // Queued local versions are older than the winners: drop them.
-      await this.db.outbox.bulkDelete(winners.map((row) => outboxKey('projects', row.id)))
-      return winners.length > 0
-    })
-  }
-
-  private applyTasks(rows: Task[]): Promise<boolean> {
-    return this.db.transaction('rw', this.db.tasks, this.db.outbox, async () => {
-      const existing = await this.db.tasks.bulkGet(rows.map((row) => row.id))
-      const winners = rows.filter((row, i) => isNewer(row, existing[i]))
-      await this.db.tasks.bulkPut(winners)
-      await this.db.outbox.bulkDelete(winners.map((row) => outboxKey('tasks', row.id)))
+      await this.db.outbox.bulkDelete(winners.map((row) => outboxKey(table, row.id)))
       return winners.length > 0
     })
   }
 
   private wipe() {
-    const { projects, tasks, outbox, meta } = this.db
-    return this.db.transaction('rw', [projects, tasks, outbox, meta], async () => {
-      await Promise.all([projects.clear(), tasks.clear(), outbox.clear(), meta.clear()])
+    const { projects, tasks, docItems, outbox, meta } = this.db
+    return this.db.transaction('rw', [projects, tasks, docItems, outbox, meta], async () => {
+      await Promise.all([
+        projects.clear(),
+        tasks.clear(),
+        docItems.clear(),
+        outbox.clear(),
+        meta.clear(),
+      ])
     })
   }
 

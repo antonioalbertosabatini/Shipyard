@@ -1,6 +1,6 @@
 import { Dexie } from 'dexie'
 import { beforeEach, describe, expect, it } from 'vitest'
-import type { TaskInput } from '@/domain/schemas'
+import type { DocItemInput, TaskInput } from '@/domain/schemas'
 import { createId } from '@/lib/id'
 import { createDexieRepositories } from '..'
 import { EntityNotFoundError, type Repositories } from '../repositories'
@@ -12,6 +12,11 @@ const taskInput = (overrides: Partial<TaskInput> = {}): TaskInput => ({
   type: 'feature',
   status: 'todo',
   priority: 'medium',
+  ...overrides,
+})
+const docItemInput = (overrides: Partial<DocItemInput> = {}): DocItemInput => ({
+  type: 'command',
+  content: 'npm run dev',
   ...overrides,
 })
 
@@ -51,14 +56,16 @@ describe('projects', () => {
     expect(cleared).not.toHaveProperty('icon')
   })
 
-  it('removes a project together with its tasks', async () => {
+  it('removes a project together with its tasks and documentation items', async () => {
     const project = await repos.projects.create(projectInput)
     await repos.tasks.create(project.id, taskInput())
+    await repos.docItems.create(project.id, docItemInput())
 
     await repos.projects.remove(project.id)
 
     expect(await repos.projects.list()).toEqual([])
     expect(await repos.tasks.listAll()).toEqual([])
+    expect(await repos.docItems.listByProject(project.id)).toEqual([])
     await expect(repos.projects.update(project.id, projectInput)).rejects.toBeInstanceOf(
       EntityNotFoundError,
     )
@@ -136,10 +143,68 @@ describe('tasks', () => {
   })
 })
 
+describe('documentation items', () => {
+  it('refuses items for unknown projects', async () => {
+    await expect(repos.docItems.create('missing', docItemInput())).rejects.toBeInstanceOf(
+      EntityNotFoundError,
+    )
+  })
+
+  it('appends new items at the bottom and keeps them per project', async () => {
+    const { id } = await repos.projects.create(projectInput)
+    const other = await repos.projects.create({ ...projectInput, name: 'Other' })
+    const first = await repos.docItems.create(id, docItemInput())
+    const second = await repos.docItems.create(id, docItemInput({ content: 'npm run build' }))
+    await repos.docItems.create(other.id, docItemInput())
+
+    expect(second.order).toBeGreaterThan(first.order)
+    expect((await repos.docItems.listByProject(id)).map((item) => item.id)).toEqual([
+      first.id,
+      second.id,
+    ])
+  })
+
+  it('sets and clears the description', async () => {
+    const { id } = await repos.projects.create(projectInput)
+    const created = await repos.docItems.create(id, docItemInput({ description: 'Dev server' }))
+    expect(created.description).toBe('Dev server')
+
+    const cleared = await repos.docItems.update(created.id, docItemInput())
+    expect(cleared).not.toHaveProperty('description')
+  })
+
+  it('reorders items', async () => {
+    const { id } = await repos.projects.create(projectInput)
+    const contents = ['a', 'b', 'c']
+    for (const content of contents) await repos.docItems.create(id, docItemInput({ content }))
+    const [, , last] = await repos.docItems.listByProject(id)
+
+    await repos.docItems.move(last!.id, 0)
+
+    expect((await repos.docItems.listByProject(id)).map((item) => item.content)).toEqual([
+      'c',
+      'a',
+      'b',
+    ])
+  })
+
+  it('soft-deletes items so the removal can sync', async () => {
+    const { id } = await repos.projects.create(projectInput)
+    const item = await repos.docItems.create(id, docItemInput())
+
+    await repos.docItems.remove(item.id)
+
+    expect(await repos.docItems.listByProject(id)).toEqual([])
+    expect((await db.docItems.get(item.id))?.deletedAt).toBeDefined()
+    await expect(repos.docItems.move(item.id, 0)).rejects.toBeInstanceOf(EntityNotFoundError)
+  })
+})
+
 describe('backup', () => {
   it('exports and re-imports in replace mode', async () => {
     const project = await repos.projects.create(projectInput)
     await repos.tasks.create(project.id, taskInput({ dueDate: '2026-10-01' }))
+    await repos.docItems.create(project.id, docItemInput())
     const backup = await repos.backup.exportAll()
 
     await repos.backup.clearAll()
@@ -148,12 +213,14 @@ describe('backup', () => {
     await expect(repos.backup.importAll(backup, 'replace')).resolves.toEqual({
       projects: 1,
       tasks: 1,
+      docItems: 1,
     })
     // Imported rows are stamped as the newest version so they also win on synced devices.
     const restored = await repos.backup.exportAll()
     const anyTimestamp = { updatedAt: expect.any(String) }
     expect(restored.projects).toEqual(backup.projects.map((p) => ({ ...p, ...anyTimestamp })))
     expect(restored.tasks).toEqual(backup.tasks.map((t) => ({ ...t, ...anyTimestamp })))
+    expect(restored.docItems).toEqual(backup.docItems.map((d) => ({ ...d, ...anyTimestamp })))
     expect(restored.projects[0]!.updatedAt > backup.projects[0]!.updatedAt).toBe(true)
   })
 
@@ -181,19 +248,21 @@ describe('backup', () => {
       'merge',
     )
 
-    expect(result).toEqual({ projects: 1, tasks: 0 })
+    expect(result).toEqual({ projects: 1, tasks: 0, docItems: 0 })
     expect((await repos.projects.list()).map((p) => p.name)).toEqual(['Imported', 'Renamed'])
   })
 
   it('clears data with tombstones, so the reset can sync', async () => {
     const project = await repos.projects.create(projectInput)
     await repos.tasks.create(project.id, taskInput())
+    await repos.docItems.create(project.id, docItemInput())
 
     await repos.backup.clearAll()
 
     expect(await repos.projects.list()).toEqual([])
     expect((await db.projects.toArray()).every((p) => p.deletedAt)).toBe(true)
     expect((await db.tasks.toArray()).every((t) => t.deletedAt)).toBe(true)
+    expect((await db.docItems.toArray()).every((d) => d.deletedAt)).toBe(true)
   })
 })
 

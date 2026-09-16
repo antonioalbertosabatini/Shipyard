@@ -1,7 +1,7 @@
 import { arrayMove } from '@dnd-kit/sortable'
 import { TASK_STATUSES, type TaskStatus } from '@/domain/constants'
+import { sortByOrder } from '@/domain/order'
 import type { Task } from '@/domain/schemas'
-import { sortByOrder } from '@/domain/task'
 
 export type Columns = Record<TaskStatus, Task[]>
 

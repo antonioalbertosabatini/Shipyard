@@ -3,18 +3,21 @@ import { useSearchParams } from 'react-router'
 import { TASK_PRIORITIES, TASK_TYPES } from '@/domain/constants'
 import type { TaskFilters } from './filters'
 
-export type ProjectView = 'board' | 'list'
+export type ProjectView = 'board' | 'list' | 'docs'
+
+const VIEWS: readonly ProjectView[] = ['board', 'list', 'docs']
 
 type ViewParams = Partial<{ view: ProjectView; q: string; type: string; priority: string }>
 
 const pick = <T extends string>(value: string | null, allowed: readonly T[]): T | 'all' =>
   allowed.includes(value as T) ? (value as T) : 'all'
 
-/** Board/list view and task filters, kept in the URL so they survive reloads and links. */
+/** Board/list/docs view and task filters, kept in the URL so they survive reloads and links. */
 export function useProjectView() {
   const [params, setParams] = useSearchParams()
 
-  const view: ProjectView = params.get('view') === 'list' ? 'list' : 'board'
+  const requested = params.get('view') as ProjectView | null
+  const view: ProjectView = requested && VIEWS.includes(requested) ? requested : 'board'
   const q = params.get('q') ?? ''
   const type = pick(params.get('type'), TASK_TYPES)
   const priority = pick(params.get('priority'), TASK_PRIORITIES)

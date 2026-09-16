@@ -1,7 +1,7 @@
 import { Dexie, type EntityTable, type Table } from 'dexie'
-import type { Project, Task } from '@/domain/schemas'
+import type { DocItem, Project, Task } from '@/domain/schemas'
 
-export type SyncTable = 'projects' | 'tasks'
+export type SyncTable = 'projects' | 'tasks' | 'docItems'
 
 /** A local change waiting to be pushed; `updatedAt` identifies the version that was queued. */
 export interface OutboxEntry {
@@ -19,6 +19,7 @@ export interface MetaEntry {
 export class ShipyardDB extends Dexie {
   projects!: EntityTable<Project, 'id'>
   tasks!: EntityTable<Task, 'id'>
+  docItems!: EntityTable<DocItem, 'id'>
   outbox!: Table<OutboxEntry, [SyncTable, string]>
   meta!: EntityTable<MetaEntry, 'key'>
 
@@ -40,6 +41,8 @@ export class ShipyardDB extends Dexie {
           .table<OutboxEntry>('outbox')
           .bulkPut([...toOutbox('projects', projects), ...toOutbox('tasks', tasks)])
       })
+    // The new table starts empty, so nothing has to be queued for upload.
+    this.version(3).stores({ docItems: 'id, projectId, updatedAt' })
   }
 }
 

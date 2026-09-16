@@ -1,5 +1,12 @@
 /** Conversions between local entities (camelCase, absent optionals) and Supabase rows (snake_case, nulls). */
-import { projectSchema, taskSchema, type Project, type Task } from '@/domain/schemas'
+import {
+  docItemSchema,
+  projectSchema,
+  taskSchema,
+  type DocItem,
+  type Project,
+  type Task,
+} from '@/domain/schemas'
 import { normalizeTimestamp } from '@/domain/sync'
 import { compact } from '../dexie/db'
 
@@ -34,6 +41,19 @@ export interface TaskRow {
   created_at: string
   updated_at: string
   completed_at: string | null
+  deleted_at: string | null
+}
+
+/** Columns of `public.doc_items` written by clients. */
+export interface DocItemRow {
+  id: string
+  project_id: string
+  type: string
+  content: string
+  description: string | null
+  order: number
+  created_at: string
+  updated_at: string
   deleted_at: string | null
 }
 
@@ -74,6 +94,18 @@ export const taskToRow = (task: Task): TaskRow => ({
   deleted_at: task.deletedAt ?? null,
 })
 
+export const docItemToRow = (item: DocItem): DocItemRow => ({
+  id: item.id,
+  project_id: item.projectId,
+  type: item.type,
+  content: item.content,
+  description: item.description ?? null,
+  order: item.order,
+  created_at: item.createdAt,
+  updated_at: item.updatedAt,
+  deleted_at: item.deletedAt ?? null,
+})
+
 /** Remote row → local project, or `null` when the row fails validation. */
 export function rowToProject(row: ProjectRow): Project | null {
   const result = projectSchema.safeParse(
@@ -112,6 +144,24 @@ export function rowToTask(row: TaskRow): Task | null {
       createdAt: normalizeTimestamp(row.created_at),
       updatedAt: normalizeTimestamp(row.updated_at),
       completedAt: optionalTimestamp(row.completed_at),
+      deletedAt: optionalTimestamp(row.deleted_at),
+    }),
+  )
+  return result.success ? compact(result.data) : null
+}
+
+/** Remote row → local documentation item, or `null` when the row fails validation. */
+export function rowToDocItem(row: DocItemRow): DocItem | null {
+  const result = docItemSchema.safeParse(
+    compact({
+      id: row.id,
+      projectId: row.project_id,
+      type: row.type,
+      content: row.content,
+      description: row.description ?? undefined,
+      order: row.order,
+      createdAt: normalizeTimestamp(row.created_at),
+      updatedAt: normalizeTimestamp(row.updated_at),
       deletedAt: optionalTimestamp(row.deleted_at),
     }),
   )

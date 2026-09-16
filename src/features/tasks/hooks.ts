@@ -3,8 +3,9 @@ import { useCallback } from 'react'
 import { useRepositories } from '@/data/context'
 import { queryKeys } from '@/data/queryKeys'
 import type { TaskStatus } from '@/domain/constants'
+import { sortByOrder } from '@/domain/order'
 import type { Task, TaskInput } from '@/domain/schemas'
-import { applyMove, sortByOrder } from '@/domain/task'
+import { applyMove } from '@/domain/task'
 
 export function useAllTasks() {
   const { tasks } = useRepositories()
@@ -64,8 +65,7 @@ export function useMoveTask(projectId: string) {
   const { tasks } = useRepositories()
   const queryClient = useQueryClient()
   const { mutate } = useMutation({
-    mutationFn: ({ taskId, status, index }: MoveTaskVariables) =>
-      tasks.move(taskId, status, index),
+    mutationFn: ({ taskId, status, index }: MoveTaskVariables) => tasks.move(taskId, status, index),
     onSettled: () => queryClient.invalidateQueries({ queryKey: queryKeys.tasks.all }),
   })
 

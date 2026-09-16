@@ -4,10 +4,14 @@ export const TASK_PRIORITIES = ['low', 'medium', 'high', 'critical'] as const
 /** T-shirt sizes, from the smallest to the largest estimate. */
 export const TASK_EFFORTS = ['xs', 's', 'm', 'l', 'xl'] as const
 
+/** What a documentation item holds: a web link, a shell command or a plain note. */
+export const DOC_ITEM_TYPES = ['link', 'command', 'info'] as const
+
 export type TaskType = (typeof TASK_TYPES)[number]
 export type TaskStatus = (typeof TASK_STATUSES)[number]
 export type TaskPriority = (typeof TASK_PRIORITIES)[number]
 export type TaskEffort = (typeof TASK_EFFORTS)[number]
+export type DocItemType = (typeof DOC_ITEM_TYPES)[number]
 
 export const PROJECT_COLORS = [
   '#6366f1',

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { buildBackup, parseBackup } from './backup'
-import type { Project, Task } from './schemas'
+import type { DocItem, Project, Task } from './schemas'
 
 const ts = '2026-09-15T10:00:00.000Z'
 
@@ -25,9 +25,20 @@ const task: Task = {
   updatedAt: ts,
 }
 
+const docItem: DocItem = {
+  id: 'd1',
+  projectId: 'p1',
+  type: 'link',
+  content: 'https://vercel.com/dashboard',
+  description: 'Deployments',
+  order: 1000,
+  createdAt: ts,
+  updatedAt: ts,
+}
+
 describe('parseBackup', () => {
   it('round-trips a valid backup', () => {
-    const backup = buildBackup([project], [task], new Date(ts))
+    const backup = buildBackup([project], [task], [docItem], new Date(ts))
     const result = parseBackup(JSON.stringify(backup))
     expect(result).toEqual({ success: true, data: backup })
   })
@@ -36,10 +47,25 @@ describe('parseBackup', () => {
     const backup = buildBackup(
       [{ ...project, icon: 'rocket' }],
       [{ ...task, effort: 'm', icon: 'bug' }],
+      [],
       new Date(ts),
     )
     const result = parseBackup(JSON.stringify(backup))
     expect(result).toEqual({ success: true, data: backup })
+  })
+
+  it('imports version 1 files, which have no documentation items', () => {
+    const { docItems, ...legacy } = buildBackup([project], [task], [], new Date(ts))
+    const result = parseBackup(JSON.stringify({ ...legacy, version: 1 }))
+    expect(result).toEqual({ success: true, data: { ...legacy, version: 1, docItems: [] } })
+    expect(docItems).toEqual([])
+  })
+
+  it('rejects documentation items pointing to missing projects', () => {
+    const backup = buildBackup([project], [task], [{ ...docItem, projectId: 'ghost' }])
+    const result = parseBackup(JSON.stringify(backup))
+    expect(result.success).toBe(false)
+    if (!result.success) expect(result.error).toContain('docItems.0.projectId')
   })
 
   it('rejects malformed JSON', () => {
@@ -52,7 +78,7 @@ describe('parseBackup', () => {
   })
 
   it('rejects tasks pointing to missing projects', () => {
-    const backup = buildBackup([project], [{ ...task, projectId: 'ghost' }], new Date(ts))
+    const backup = buildBackup([project], [{ ...task, projectId: 'ghost' }], [], new Date(ts))
     const result = parseBackup(JSON.stringify(backup))
     expect(result.success).toBe(false)
     if (!result.success) expect(result.error).toContain('tasks.0.projectId')
