@@ -16,7 +16,7 @@ Read it fully before making changes.
 
 Shipyard is a project tracker for developers who manage several web projects (mostly personal, but not only). It is **desktop-first**, and must later be installable on **desktop (Electron)**, **Android and iOS (Capacitor)**.
 
-Current state: an **offline-first web app** (runs with `npm run dev`). Data always lives in **IndexedDB**; when Supabase is configured, signed-in users get **cloud sync** across devices (Supabase Postgres + Auth + Realtime). Without the Supabase environment variables the app runs in **local-only mode**, exactly as before.
+Current state: an **offline-first web app** (runs with `npm run dev`), deployable as a static site (Cloudflare Pages) and installable as a **PWA**. Data always lives in **IndexedDB**; when Supabase is configured, signed-in users get **cloud sync** across devices (Supabase Postgres + Auth + Realtime). Without the Supabase environment variables the app runs in **local-only mode**, exactly as before.
 
 ### Entities
 
@@ -71,6 +71,7 @@ Auth routes render full screen (`AuthLayout`, outside the app shell). In local-o
 - **Sign-out** uploads pending changes (offering "try again" / "sign out anyway" if that fails), then removes local data from the device. Signing in with a different account than the local data's owner wipes that data first.
 - Guest-only pages redirect signed-in users to `?redirect=` (same-app paths only) or `/`. `/account` redirects guests to `/login?redirect=/account`.
 - Forgot password always shows the same confirmation (never reveals whether an account exists). Changing the password re-verifies the current one.
+- Production builds register a service worker: the interface loads offline, and a new deploy shows a persistent toast with **Reload** (never an automatic reload, so open forms are not lost). The first install shows "ready to work offline".
 - Mobile (< 768px): bottom navigation, header (with sync status / sign-in button), horizontally scrolling snap columns on the board, forms open as bottom sheets. Desktop: sidebar with the list of active projects and an account/sync status footer, forms open as centered dialogs.
 
 ---
@@ -96,6 +97,7 @@ Auth routes render full screen (`AuthLayout`, outside the app shell). In local-o
 | Toasts | sonner | |
 | Tests | Vitest 5 (jsdom), Testing Library, fake-indexeddb | |
 | Zip | fflate | In-memory ZIP for the Obsidian vault export (MIT). |
+| PWA | vite-plugin-pwa (Workbox), @vite-pwa/assets-generator | Manifest, precaching service worker, icons generated from `public/favicon.svg` (MIT). |
 | Lint / format | oxlint, Prettier (+ tailwind plugin) | No semicolons, single quotes, width 100. |
 
 Node ≥ 22 is required (React Router v8).
@@ -114,6 +116,8 @@ Node ≥ 22 is required (React Router v8).
 
 ### Environment
 
+Node 22 is pinned for hosts in `.node-version` (and `engines` in `package.json`).
+
 Copy `.env.example` to `.env.local` (git-ignored). All variables are optional and typed in `src/env.d.ts`.
 
 | Variable | Purpose |
@@ -123,7 +127,7 @@ Copy `.env.example` to `.env.local` (git-ignored). All variables are optional an
 | `VITE_AUTH_REDIRECT_URL` | Base URL for auth email links (defaults to `window.location.origin`). Needed for Electron/Capacitor. |
 | `VITE_ROUTER_MODE` | `hash` for file-based shells; browser history by default. |
 
-The database schema lives in `supabase/migrations/` (see §4 "Cloud sync"). Setup steps for a new Supabase project are in `README.md`.
+The database schema lives in `supabase/migrations/` (see §4 "Cloud sync"). Setup steps for a new Supabase project and for the Cloudflare Pages deploy are in `README.md`.
 
 ---
 
@@ -139,6 +143,7 @@ src/
     router.tsx             # Route table (app shell + auth layout); browser or hash history
     AppLayout.tsx          # Sidebar (desktop), header + bottom nav (mobile), sync status indicator
     ThemeProvider.tsx      # system/light/dark theme, persisted in localStorage
+    PwaUpdater.tsx         # Service worker registration, "offline ready" / "new version, reload" toasts
     NotFoundPage.tsx, RouteError.tsx
   components/
     ui/                    # shadcn generated components (see §7)
@@ -191,8 +196,14 @@ src/
   lib/                     # id.ts (UUID), dates.ts, download.ts (string or Blob), zip.ts (fflate),
                            # supabase.ts (client, authRedirectUrl), utils.ts (cn)
   test/setup.ts            # fake-indexeddb, jest-dom matchers, Testing Library cleanup
+public/
+  favicon.svg              # App logo; source of every generated PWA icon
+  _headers                 # Cloudflare Pages headers: security, noindex, cache rules
+  robots.txt               # Disallow all (personal instance)
 supabase/
   migrations/              # SQL schema: tables, sync trigger, RLS policies, realtime publication
+pwa-assets.config.ts       # Icon generation (minimal 2023 preset, dark background for padded icons)
+.node-version              # Node 22 for the hosting build
 ```
 
 Import alias: `@/` → `src/`.
@@ -274,6 +285,16 @@ Strategy: **row-level last write wins on `updated_at`, with a server-assigned pu
 - `VITE_ROUTER_MODE=hash` switches to hash history (needed for `file://` in Electron/Capacitor). Default is browser history.
 - Two top-level branches: `/` with `AppLayout`, and a pathless `AuthLayout` route for `/login`, `/signup`, `/forgot-password`, `/reset-password`, `/logout`.
 
+### Deploy and PWA
+
+- Hosting target: **Cloudflare Pages** (Git integration, `npm run build`, output `dist`). The `VITE_*` variables are set in the Pages dashboard and baked in at build time. Pages serves `index.html` for unknown paths (no `404.html` in `dist`), so the browser router needs no `_redirects`; do not add a `404.html`.
+- `public/_headers` sets security headers, `X-Robots-Tag: noindex`, immutable caching for `/assets/*` and `no-cache` for `/`, `index.html`, `sw.js`, `registerSW.js` and `manifest.webmanifest`. Keep entry points revalidated, or clients get stuck on an old version.
+- `vite-plugin-pwa` in `vite.config.ts`: `registerType: 'prompt'`, `generateSW` precaching the build (`maximumFileSizeToCacheInBytes` raised because the main bundle exceeds 2 MiB), `navigateFallback: 'index.html'`. **No runtime caching**: Supabase requests are cross-origin and offline data is the sync engine's job.
+- The manifest, icons links and `theme-color` are injected into `index.html` at build time (`pwaAssets` reads `pwa-assets.config.ts`): do not add them by hand. Icons are generated from `public/favicon.svg`.
+- `PwaUpdater` (rendered in `providers.tsx`) uses `virtual:pwa-register/react` (types in `tsconfig.app.json`) and checks for a new service worker every hour, since installed apps rarely reload.
+- The plugin is skipped when `VITEST` is set; the service worker is not registered in `npm run dev`. Test PWA behavior with `npm run build && npm run preview` (launch config `shipyard-preview`).
+- Personal instance: after creating the account, disable sign-ups in Supabase (the publishable key and URL are public; RLS still isolates users).
+
 ### Theme
 
 - Custom `ThemeProvider` (no `next-themes`: it injects a `<script>` React 19 warns about).
@@ -338,6 +359,7 @@ Strategy: **row-level last write wins on `updated_at`, with a server-assigned pu
 - A Zod schema carrying a refinement cannot be `.extend()`ed: `docItemInputSchema` and `docItemSchema` are built from one shared field map, each applying the same `refine` (the link URL check).
 - Avoid very recent JS APIs not available in older iOS WebViews (e.g. `Map.groupBy`), since the app will run in Capacitor.
 - `navigator.storage.persist()` is requested at startup to reduce IndexedDB eviction.
+- **The preview service worker sticks around**: after testing `npm run preview` on port 4173, that origin keeps serving the cached build until the new worker is activated (Reload toast) or the registration is removed in DevTools → Application.
 - Radix Select keyboard interaction needs a short delay after opening in automated browser tests; screenshots may lag behind DOM state during dialog animations — verify with DOM queries.
 - **Never compare timestamps as strings** across sources: Postgres returns `2026-09-15T10:00:00.123456+00:00`. Use `isNewer`/`toMillis` (which also trims microseconds that some WebViews cannot parse) and `normalizeTimestamp` when storing remote values.
 - **The sync trigger silently skips stale upserts** (a `BEFORE UPDATE` trigger returning `NULL`): no error is returned, the pull then brings the newer row. Do not "fix" this by forcing updates.
@@ -353,7 +375,8 @@ Strategy: **row-level last write wins on `updated_at`, with a server-assigned pu
 - **Electron (desktop)**: load `dist/` with `VITE_ROUTER_MODE=hash`; replace `lib/download.ts` with a native save dialog; consider CSP (the theme inline script in `index.html` may need a hash/nonce; allow `connect-src` to the Supabase URL, `wss:` for Realtime). Auth email links need `VITE_AUTH_REDIRECT_URL` pointing to a handled URL/deep link.
 - **Capacitor (Android/iOS)**: `webDir: dist`, hash router, safe-area insets are already handled (`env(safe-area-inset-*)`, `viewport-fit=cover`). iOS may evict WebView storage (sync restores data after sign-in). Auth sessions use `localStorage`; consider Capacitor Preferences storage and deep links for email flows.
 - **Sync follow-ups**: tombstone garbage collection, field-level merge if row-level LWW proves too coarse, account deletion, a "delete from this device only" option.
-- **Performance**: route-level code splitting (bundle is ~1260 kB).
+- **Performance**: route-level code splitting (bundle is ~1270 kB).
+- **Security**: Content Security Policy in `public/_headers` (needs a hash for the inline theme script in `index.html`, `connect-src` for Supabase `https:`/`wss:`).
 - **i18n**: add Italian.
 
 ---
@@ -368,6 +391,7 @@ Strategy: **row-level last write wins on `updated_at`, with a server-assigned pu
 
 Add a line for every change that updates this guide (newest first).
 
+- 2026-09-16 — Deploy to Cloudflare Pages (`public/_headers`, `robots.txt`, `.node-version`) and installable PWA (`vite-plugin-pwa`, generated icons, `PwaUpdater` reload prompt); Shipyard logo replaces the default Vite favicon.
 - 2026-09-16 — Obsidian vault export (ZIP of linked Markdown notes) next to the JSON backup; `fflate`, `download.ts` accepts Blob.
 - 2026-09-16 — Documentation tab per project (`?view=docs`): new `DocItem` entity (link / command / info, ordered, soft-deleted, synced), Dexie v3 + `doc_items` migration, backup version 2 (still importing version 1), `domain/order.ts` extracted from `domain/task.ts` with `applyReorder`.
 - 2026-09-16 — Optional task `effort` (t-shirt sizes XS–XL, sortable in the list) and optional `icon` on projects and tasks (curated lucide set, `IconPicker`, `EntityIcon`, `ProjectGlyph`), with the matching Supabase migration.

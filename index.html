@@ -2,15 +2,20 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <meta name="theme-color" content="#0a0a0a" />
+    <meta name="description" content="Project and task tracker for developers" />
+    <meta name="apple-mobile-web-app-title" content="Shipyard" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <!-- Icons, manifest and theme-color are injected by vite-plugin-pwa (see pwa-assets.config.ts). -->
     <title>Shipyard</title>
     <script>
       // Apply the saved theme before first paint to avoid a light flash (see src/hooks/use-theme.ts).
       try {
         var theme = localStorage.getItem('shipyard-theme')
-        if (theme === 'dark' || (theme !== 'light' && matchMedia('(prefers-color-scheme: dark)').matches)) {
+        if (
+          theme === 'dark' ||
+          (theme !== 'light' && matchMedia('(prefers-color-scheme: dark)').matches)
+        ) {
           document.documentElement.classList.add('dark')
         }
       } catch (e) {}

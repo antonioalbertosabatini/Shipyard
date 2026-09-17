@@ -45,6 +45,24 @@ Without further configuration the app runs in **local-only mode** (no account, d
 
 Your existing local projects and tasks are uploaded on the first sign-in.
 
+## Deploy (Cloudflare Pages, free)
+
+Shipyard is a static site: any static host works. The repository is ready for **Cloudflare Pages** (`public/_headers`, `.node-version`), which also serves `index.html` for deep links automatically.
+
+1. **Cloudflare dashboard → Workers & Pages → Create → Pages → Connect to Git**, pick this repository.
+   - Build command: `npm run build` · Build output directory: `dist` · Production branch: `main`.
+   - The project name becomes the address: `https://<project-name>.pages.dev`.
+2. **Settings → Variables and secrets** (Production and Preview): `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY`, with the same values as `.env.local`. They are baked in at build time: redeploy after changing them.
+3. **Supabase → Authentication → URL Configuration**: set *Site URL* to `https://<project-name>.pages.dev` and add `https://<project-name>.pages.dev/**` to *Redirect URLs*.
+4. Make sure every file in `supabase/migrations/` has been run on the Supabase project.
+5. Sign in (or sign up once), then **disable *Allow new users to sign up*** (*Authentication → Sign In / Providers*) for a personal instance: the URL and the publishable key are public. The app shows "New sign-ups are disabled" to anyone who tries.
+
+Every push to `main` deploys again. Note that free Supabase projects pause after a week without activity; resume them from the Supabase dashboard (local data stays in IndexedDB).
+
+### Install as an app (PWA)
+
+The production build is a Progressive Web App: the interface loads offline and it can be installed from Chrome/Edge (install icon in the address bar), Safari on macOS (*File → Add to Dock*), iOS (*Share → Add to Home Screen*) and Android (*Install app*). When a new version is deployed, the app shows a toast with a *Reload* button. The service worker is only active in `npm run build` / `npm run preview`, not in `npm run dev`.
+
 ### How sync works
 
 - The app always reads and writes the local database, so it stays fast and works offline. Local changes are queued and uploaded in the background.
@@ -65,13 +83,14 @@ Your existing local projects and tasks are uploaded on the first sign-in.
 - **Accounts** (with Supabase): sign up, sign in, forgot/reset password, change password, sign out; sync status in the sidebar and header.
 - **Sync** across devices, offline-first, with realtime updates.
 - **Backup**: JSON export/import (*merge* or *replace*) and data reset. **Obsidian export**: ZIP of linked Markdown notes (one folder per project, one note per task); not a restore format.
+- **Installable PWA**: works offline, prompts to reload when a new version is deployed.
 - Light/dark/system theme, responsive layout (sidebar on desktop, bottom navigation on mobile), English UI with i18n ready for more languages.
 
 ## Tech stack
 
 | Area | Technology |
 | --- | --- |
-| Build & UI | Vite, React 19, TypeScript (strict) |
+| Build & UI | Vite, React 19, TypeScript (strict), vite-plugin-pwa |
 | Styling | Tailwind CSS v4, shadcn/ui (Radix), lucide-react |
 | Routing | React Router (browser or hash history) |
 | Data | TanStack Query on top of storage-agnostic repositories; Dexie (IndexedDB) |
@@ -118,6 +137,7 @@ See [AGENTS.md](AGENTS.md) for the detailed technical and functional documentati
 - **Mobile (Capacitor)**: `npx cap add android` / `npx cap add ios` with `webDir: dist`; deep links for auth emails.
 - Sync improvements: tombstone cleanup, account deletion.
 - Route-level code splitting to reduce the initial bundle.
+- Content Security Policy header (the inline theme script needs a hash).
 - Italian translation.
 
 ## License

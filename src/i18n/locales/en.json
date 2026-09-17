@@ -370,5 +370,10 @@
       "clearDescriptionSynced": "All projects and tasks will be deleted from this device, your account and every synced device. Export a backup first if you want to keep them.",
       "cleared": "All data deleted"
     }
+  },
+  "pwa": {
+    "updateAvailable": "A new version of Shipyard is available.",
+    "reload": "Reload",
+    "offlineReady": "Shipyard is ready to work offline."
   }
 }

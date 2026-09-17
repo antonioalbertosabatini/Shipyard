@@ -9,6 +9,7 @@ import { RepositoryProvider } from '@/data/RepositoryProvider'
 import { AuthProvider } from '@/features/auth/AuthProvider'
 import { SyncProvider } from '@/features/sync/SyncProvider'
 import i18n from '@/i18n'
+import { PwaUpdater } from './PwaUpdater'
 import { ThemeProvider } from './ThemeProvider'
 
 function createQueryClient(sync: SyncController | null) {
@@ -51,6 +52,7 @@ export function AppProviders({
               <TooltipProvider>
                 {children}
                 <Toaster position="top-center" richColors />
+                <PwaUpdater />
               </TooltipProvider>
             </SyncProvider>
           </AuthProvider>
