@@ -45,15 +45,16 @@ Without further configuration the app runs in **local-only mode** (no account, d
 
 Your existing local projects and tasks are uploaded on the first sign-in.
 
-## Deploy (Cloudflare Pages, free)
+## Deploy (Cloudflare Workers, free)
 
-Shipyard is a static site: any static host works. The repository is ready for **Cloudflare Pages** (`public/_headers`, `.node-version`), which also serves `index.html` for deep links automatically.
+Shipyard is a static site: any static host works. The repository is ready for **Cloudflare Workers static assets** (`wrangler.jsonc`, `public/_headers`, `.node-version`); `wrangler.jsonc` serves `index.html` for deep links (`not_found_handling: single-page-application`).
 
-1. **Cloudflare dashboard → Workers & Pages → Create → Pages → Connect to Git**, pick this repository.
-   - Build command: `npm run build` · Build output directory: `dist` · Production branch: `main`.
-   - The project name becomes the address: `https://<project-name>.pages.dev`.
-2. **Settings → Variables and secrets** (Production and Preview): `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY`, with the same values as `.env.local`. They are baked in at build time: redeploy after changing them.
-3. **Supabase → Authentication → URL Configuration**: set *Site URL* to `https://<project-name>.pages.dev` and add `https://<project-name>.pages.dev/**` to *Redirect URLs*.
+1. **Cloudflare dashboard → Workers & Pages → Create → Import a repository**, pick this repository.
+   - Worker name: `shipyard` (it must match `name` in `wrangler.jsonc`).
+   - Build command: `npm run build` · Deploy command: `npx wrangler deploy` · Branch: `main`.
+   - The address is `https://shipyard.<account-subdomain>.workers.dev`.
+2. **Settings → Build → Variables and secrets** (build variables, *not* the runtime *Settings → Variables and secrets*): `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY`, with the same values as `.env.local`. Vite bakes them in at build time: redeploy after changing them. If they are missing, the deployed app runs in local-only mode ("Cloud sync is not configured").
+3. **Supabase → Authentication → URL Configuration**: set *Site URL* to the `workers.dev` address and add `<address>/**` to *Redirect URLs*.
 4. Make sure every file in `supabase/migrations/` has been run on the Supabase project.
 5. Sign in (or sign up once), then **disable *Allow new users to sign up*** (*Authentication → Sign In / Providers*) for a personal instance: the URL and the publishable key are public. The app shows "New sign-ups are disabled" to anyone who tries.
 

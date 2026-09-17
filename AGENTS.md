@@ -16,7 +16,7 @@ Read it fully before making changes.
 
 Shipyard is a project tracker for developers who manage several web projects (mostly personal, but not only). It is **desktop-first**, and must later be installable on **desktop (Electron)**, **Android and iOS (Capacitor)**.
 
-Current state: an **offline-first web app** (runs with `npm run dev`), deployable as a static site (Cloudflare Pages) and installable as a **PWA**. Data always lives in **IndexedDB**; when Supabase is configured, signed-in users get **cloud sync** across devices (Supabase Postgres + Auth + Realtime). Without the Supabase environment variables the app runs in **local-only mode**, exactly as before.
+Current state: an **offline-first web app** (runs with `npm run dev`), deployable as a static site (Cloudflare Workers static assets) and installable as a **PWA**. Data always lives in **IndexedDB**; when Supabase is configured, signed-in users get **cloud sync** across devices (Supabase Postgres + Auth + Realtime). Without the Supabase environment variables the app runs in **local-only mode**, exactly as before.
 
 ### Entities
 
@@ -127,7 +127,7 @@ Copy `.env.example` to `.env.local` (git-ignored). All variables are optional an
 | `VITE_AUTH_REDIRECT_URL` | Base URL for auth email links (defaults to `window.location.origin`). Needed for Electron/Capacitor. |
 | `VITE_ROUTER_MODE` | `hash` for file-based shells; browser history by default. |
 
-The database schema lives in `supabase/migrations/` (see §4 "Cloud sync"). Setup steps for a new Supabase project and for the Cloudflare Pages deploy are in `README.md`.
+The database schema lives in `supabase/migrations/` (see §4 "Cloud sync"). Setup steps for a new Supabase project and for the Cloudflare deploy are in `README.md`.
 
 ---
 
@@ -198,10 +198,11 @@ src/
   test/setup.ts            # fake-indexeddb, jest-dom matchers, Testing Library cleanup
 public/
   favicon.svg              # App logo; source of every generated PWA icon
-  _headers                 # Cloudflare Pages headers: security, noindex, cache rules
+  _headers                 # Cloudflare static assets headers: security, noindex, cache rules
   robots.txt               # Disallow all (personal instance)
 supabase/
   migrations/              # SQL schema: tables, sync trigger, RLS policies, realtime publication
+wrangler.jsonc             # Cloudflare Worker (static assets from dist/, SPA fallback)
 pwa-assets.config.ts       # Icon generation (minimal 2023 preset, dark background for padded icons)
 .node-version              # Node 22 for the hosting build
 ```
@@ -287,7 +288,8 @@ Strategy: **row-level last write wins on `updated_at`, with a server-assigned pu
 
 ### Deploy and PWA
 
-- Hosting target: **Cloudflare Pages** (Git integration, `npm run build`, output `dist`). The `VITE_*` variables are set in the Pages dashboard and baked in at build time. Pages serves `index.html` for unknown paths (no `404.html` in `dist`), so the browser router needs no `_redirects`; do not add a `404.html`.
+- Hosting target: **Cloudflare Workers static assets** with Workers Builds (Git integration: `npm run build`, then `npx wrangler deploy`). `wrangler.jsonc` serves `dist/` with `not_found_handling: "single-page-application"`, so browser-router deep links get `index.html`. Its `name` must match the Worker name in the dashboard, or the build fails.
+- The `VITE_*` variables must be **build variables** (*Settings → Build → Variables and secrets*): the runtime *Variables and secrets* are invisible to Vite, and the deployed app silently falls back to local-only mode.
 - `public/_headers` sets security headers, `X-Robots-Tag: noindex`, immutable caching for `/assets/*` and `no-cache` for `/`, `index.html`, `sw.js`, `registerSW.js` and `manifest.webmanifest`. Keep entry points revalidated, or clients get stuck on an old version.
 - `vite-plugin-pwa` in `vite.config.ts`: `registerType: 'prompt'`, `generateSW` precaching the build (`maximumFileSizeToCacheInBytes` raised because the main bundle exceeds 2 MiB), `navigateFallback: 'index.html'`. **No runtime caching**: Supabase requests are cross-origin and offline data is the sync engine's job.
 - The manifest, icons links and `theme-color` are injected into `index.html` at build time (`pwaAssets` reads `pwa-assets.config.ts`): do not add them by hand. Icons are generated from `public/favicon.svg`.
@@ -391,6 +393,7 @@ Strategy: **row-level last write wins on `updated_at`, with a server-assigned pu
 
 Add a line for every change that updates this guide (newest first).
 
+- 2026-09-17 — Deploy moved to Cloudflare Workers static assets (`wrangler.jsonc` with SPA fallback); `VITE_*` must be build variables.
 - 2026-09-16 — Deploy to Cloudflare Pages (`public/_headers`, `robots.txt`, `.node-version`) and installable PWA (`vite-plugin-pwa`, generated icons, `PwaUpdater` reload prompt); Shipyard logo replaces the default Vite favicon.
 - 2026-09-16 — Obsidian vault export (ZIP of linked Markdown notes) next to the JSON backup; `fflate`, `download.ts` accepts Blob.
 - 2026-09-16 — Documentation tab per project (`?view=docs`): new `DocItem` entity (link / command / info, ordered, soft-deleted, synced), Dexie v3 + `doc_items` migration, backup version 2 (still importing version 1), `domain/order.ts` extracted from `domain/task.ts` with `applyReorder`.
